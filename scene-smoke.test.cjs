@@ -1,18 +1,29 @@
 const fs=require('node:fs'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
 const {parseHTML}=require('linkedom');
-async function boot({reduced=true,frameMs=1000,onFrame=()=>{},languages=['zh-CN'],timers={setTimeout,clearTimeout},viewport={width:1400,height:760}}={}){
+async function boot({reduced=true,frameMs=1000,onFrame=()=>{},languages=['zh-CN'],timers={setTimeout,clearTimeout},viewport={width:1400,height:760},url}={}){
  const Three=await import('./vendor/three.module.js');
  const {document,window}=parseHTML(fs.readFileSync(__dirname+'/index.html','utf8'));const native=document.createElement.bind(document);
+ window.HTMLElement.prototype.scrollIntoView=function(){};
  document.createElement=function(name){const el=native(name);if(name==='canvas')el.getContext=()=>({fillRect(){},fillText(t){el.drawnText=String(t);},measureText(t){return {width:String(t).length*60}}});return el;};
  for(const el of document.querySelectorAll('dialog')){el.showModal=function(){this.open=true};el.close=function(){this.open=false};}
  for(const el of document.querySelectorAll('*')){Object.defineProperty(el,'clientWidth',{get:()=>el.id==='scene'?viewport.width:100});Object.defineProperty(el,'clientHeight',{get:()=>el.id==='scene'?viewport.height:60});el.focus=()=>{};el.scrollIntoView=()=>{};}
  let view,renderedCamera;const scenes=[];class Renderer{constructor(){this.domElement=native('canvas');this.shadowMap={};this.capabilities={getMaxAnisotropy:()=>8};}setPixelRatio(){}setClearColor(){}setSize(){}render(scene,camera){renderedCamera=camera;view={position:camera.position.toArray(),width:camera.right-camera.left};scenes.push(scene);scene.updateMatrixWorld();camera.updateMatrixWorld();scene.traverse(o=>{if(o.isMesh)assert.ok(o.matrixWorld.elements.every(Number.isFinite),'nonfinite transform '+o.type);});}}
- const storage=new Map();let now=0;const c={document,console,navigator:{languages},T:{...Three,WebGLRenderer:Renderer},devicePixelRatio:2,ResizeObserver:class{observe(){}},requestAnimationFrame:cb=>setImmediate(()=>{now+=frameMs;onFrame({now,document,window});cb(now);}),cancelAnimationFrame:clearImmediate,performance:{now:()=>now},matchMedia:()=>({matches:reduced}),setTimeout:timers.setTimeout,clearTimeout:timers.clearTimeout,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}};c.window=c;vm.createContext(c);
+ const storage=new Map();let now=0;const c={document,console,navigator:{languages},T:{...Three,WebGLRenderer:Renderer},devicePixelRatio:2,ResizeObserver:class{observe(){}},requestAnimationFrame:cb=>setImmediate(()=>{now+=frameMs;onFrame({now,document,window});cb(now);}),cancelAnimationFrame:clearImmediate,performance:{now:()=>now},matchMedia:()=>({matches:reduced}),setTimeout:timers.setTimeout,clearTimeout:timers.clearTimeout,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}};
+ // Existing scene tests intentionally omit browser navigation globals.
+ if(url){
+  const listeners=new Map(),entries=[new URL(url).href];let index=0;
+  c.URL=URL;c.URLSearchParams=URLSearchParams;c.location=new URL(url);
+  c.addEventListener=(type,fn)=>{if(!listeners.has(type))listeners.set(type,[]);listeners.get(type).push(fn);};
+  c.dispatchEvent=event=>{for(const fn of listeners.get(event.type)||[])fn(event);};
+  const visit=next=>{if(next<0||next>=entries.length)return;const oldURL=c.location.href;index=next;c.location.href=entries[index];c.dispatchEvent(new window.Event('popstate'));if(new URL(oldURL).hash!==c.location.hash)c.dispatchEvent(new window.Event('hashchange'));};
+  c.history={get length(){return entries.length;},pushState(_state,_title,target){c.location.href=new URL(target,c.location.href).href;entries.splice(++index);entries.push(c.location.href);},replaceState(_state,_title,target){c.location.href=new URL(target,c.location.href).href;entries[index]=c.location.href;},back:()=>visit(index-1),forward:()=>visit(index+1)};
+ }
+ c.window=c;vm.createContext(c);
  for(const f of ['locales/en.js','i18n.js','music.js','shell.js','model.js','campaign.js','engine-model.js','original-curriculum.js','transformer-demo.js','cloud-curriculum.js','lesson-io.js','structure-map.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8'),c,{filename:f});
  for(const f of ['module-cards.js','level-progress.js','scene-art.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8').replaceAll('export ',''),c,{filename:f});
  let src=fs.readFileSync(__dirname+'/game.js','utf8').replace(/^import .*\n/gm,'').replace("const T=await import('./vendor/three.module.js');",'const T=window.T;').replace(/const \{createSceneArt\}=await import\('\.\/scene-art\.js\?v=[^']+'\);/,'');
  src=src.replace('world={relocalize','world={inspectTracking:()=>followTracking(),inspectFollow:()=>({packet:followedPacket,target:cameraTarget.clone(),active:activeFollowPackets(),seed:followSeed,zoom,followZoom,gliding:!!followFlight}),relocalize');
- src+='\nwindow.testAPI={switchLevel,run,togglePause,refresh,select,assignDevice,chooseOutput,chooseInput,chooseModule,placeModule,getState:()=>state,setState:s=>state=s,getWorld:()=>world,getFault:()=>fault};';
+ src+='\nwindow.testAPI={switchLevel,navigate,readNavigation,run,togglePause,refresh,select,assignDevice,chooseOutput,chooseInput,chooseModule,placeModule,getState:()=>state,setState:s=>state=s,getWorld:()=>world,getFault:()=>fault,isCompleted:id=>progress.completed(id)};';
  await vm.runInContext('(async()=>{'+src+'})()',c);
  assert.ok(c.testAPI.getWorld(),'3D boot failed');return {c,document,window,api:c.testAPI,scenes,time:()=>now,setFrameMs:value=>{frameMs=value;},view:()=>view,camera:()=>renderedCamera};
 }
@@ -393,6 +404,49 @@ test('fusion supports pause, camera movement, language changes and skipping; sto
  assert.equal(app.api.getState().levelId,'weighted-sum');assert.equal(doc.querySelector('#component-fusion').hidden,true);assert.equal(root.parent,null);assert.equal(doc.body.classList.contains('synthesizing-component'),false);
  assert.equal(doc.querySelector('#level-complete').open,false);assert.equal(doc.querySelector('#pause').getAttribute('aria-pressed'),'false');assert.equal(doc.querySelectorAll('.fusion-awaiting,.fusion-arrival,.packet').length,0);
  assert.ok(app.scenes.at(-1).children.filter(o=>o.children.some(n=>n.userData.node)).every(o=>o.visible));assert.deepEqual([...app.c.I18n.missing],[]);
+});
+for(const [mode,hash,screen] of [['running','#home?lesson=projection','home'],['paused','#menu?lesson=projection&track=main&group=workbench&from=game','levels']]){
+ test(`browser history cancels a ${mode} run without replacing the current board or publishing stale results`,{timeout:15000},async()=>{
+  let app,cancelled=false,pauseStarted=false,resultsAfterNavigation;
+  app=await boot({url:'https://example.test/games/neural-atelier/?preview=1'+hash,reduced:false,frameMs:80,onFrame:({document})=>{
+   if(!app||cancelled||!document.querySelector('.projection-calculation:not([hidden])'))return;
+   if(mode==='paused'&&!pauseStarted){pauseStarted=true;app.api.togglePause();return;}
+   cancelled=true;if(mode==='paused')assert.equal(document.querySelector('#pause').getAttribute('aria-pressed'),'true');
+   app.c.history.back();
+   assert.equal(app.api.readNavigation(app.c.location.hash).screen,screen);
+   assert.equal(document.body.classList.contains('network-running'),false);assert.equal(document.querySelector('#pause').getAttribute('aria-pressed'),'false');
+   assert.equal(document.querySelectorAll('.packet,.projection-calculation,.projection-result').length,0);
+   resultsAfterNavigation=document.querySelector('#test-results').innerHTML;
+  }});
+  const doc=app.document;app.api.setState(app.c.NeuralPrologue.solutions('projection'));app.api.getWorld().rebuild();app.api.refresh();
+  const state=app.api.getState(),saved=JSON.stringify(state);
+  app.api.navigate(app.api.readNavigation('#projection'),{source:'user'});const historyLength=app.c.history.length;
+  await app.api.run();assert.ok(cancelled);assert.equal(app.api.getState(),state);assert.equal(JSON.stringify(state),saved);
+  assert.equal(doc.querySelector('#test-results').innerHTML,resultsAfterNavigation);assert.equal(doc.querySelector('#run-report').hidden,true);assert.ok(!doc.querySelector('#level-complete').open);assert.equal(app.api.getFault(),null);assert.equal(app.api.isCompleted('projection'),false);
+  app.c.history.forward();assert.equal(app.c.location.hash,'#projection');assert.equal(app.c.history.length,historyLength,'paired history events do not append entries');
+  assert.equal(app.api.getState(),state);assert.equal(JSON.stringify(state),saved);assert.equal(doc.querySelector('#test-results').innerHTML,resultsAfterNavigation);assert.equal(doc.querySelector('#run-report').hidden,true);assert.ok(!doc.querySelector('#level-complete').open);
+  assert.equal(doc.querySelector('#pause').disabled,true);assert.equal(doc.querySelectorAll('.packet,.projection-calculation,.projection-result').length,0);
+ });
+}
+test('browser history during fusion retains the saved completion and never overlays the restored lesson',async()=>{
+ let app,cancelled=false,root,resultsAfterNavigation;
+ app=await boot({url:'https://example.test/games/neural-atelier/#wire',reduced:false,frameMs:120,onFrame:({document})=>{
+  if(!app||cancelled)return;const effect=app.scenes.at(-1).children.find(o=>o.userData.fusion);if(!effect)return;
+  cancelled=true;root=effect;assert.equal(app.api.isCompleted('self-attention'),true,'completion is saved before the celebration');
+  app.c.history.back();
+  assert.equal(app.api.getState().levelId,'wire');assert.equal(root.parent,null);assert.equal(document.querySelector('#component-fusion').hidden,true);
+  resultsAfterNavigation=document.querySelector('#test-results').innerHTML;
+ }});
+ const doc=app.document;app.api.setState(app.c.NeuralPrologue.solutions('wire'));app.api.getWorld().rebuild();const wire=JSON.stringify(app.api.getState());
+ app.api.switchLevel('self-attention');app.api.setState(app.c.NeuralPrologue.solutions('self-attention'));app.api.getWorld().rebuild();const solved=JSON.stringify(app.api.getState());
+ doc.querySelector('#playback-speed').value='3';doc.querySelector('#playback-speed').dispatchEvent(new app.window.Event('input'));
+ await app.api.run();assert.ok(cancelled);assert.equal(JSON.stringify(app.api.getState()),wire);assert.equal(app.api.isCompleted('self-attention'),true);
+ assert.equal(doc.querySelector('#test-results').innerHTML,resultsAfterNavigation);assert.equal(doc.querySelectorAll('#test-results .pass').length,0);assert.equal(doc.querySelector('#run-report').hidden,true);assert.ok(!doc.querySelector('#level-complete').open);
+ assert.equal(doc.body.classList.contains('network-running'),false);assert.equal(doc.body.classList.contains('synthesizing-component'),false);assert.equal(doc.querySelector('#pause').getAttribute('aria-pressed'),'false');
+ assert.equal(doc.querySelectorAll('.fusion-awaiting,.fusion-arrival,.packet,.projection-calculation').length,0);assert.equal(root.parent,null);
+ app.c.history.forward();assert.equal(app.c.location.hash,'#self-attention');assert.equal(JSON.stringify(app.api.getState()),solved);assert.equal(app.api.isCompleted('self-attention'),true);
+ assert.ok(!doc.querySelector('#level-complete').open);assert.equal(doc.querySelector('#component-fusion').hidden,true);assert.equal(app.api.getFault(),null);
+ assert.ok(app.scenes.at(-1).children.filter(o=>o.children.some(n=>n.userData.node)).every(o=>o.visible));
 });
 test('A × V animates actual coefficients, V columns and stored sums at the projection pace',async()=>{
  let app,level='weighted-sum';const seen=new Set(),starts=new Map(),checks=new Set();
@@ -2178,6 +2232,18 @@ test('board surfaces and grid accept the stage palette without tinting the input
  art.surroundings(M.samplesFor('wire'),M.levels.wire,{surface:'#f4e3eb',edge:'#dfbecd',accent:'#8c4d62'});
  const floor=scene.children[0];assert.equal(floor.children[2].material.color.getHexString(),'f4e3eb');assert.equal(floor.children[3].material.color.getHexString(),'dfbecd');
  assert.deepEqual(input(),original,'the input and output geometry keeps its own semantic colors');
+});
+
+test('source and output captions fit the compact board without moving connection ports',async()=>{
+ const app=await boot({viewport:{width:530,height:550},languages:['en-US']}),doc=app.document;
+ app.api.switchLevel('encoder-layer');const state=JSON.stringify(app.api.getState());
+ const positions=()=>[...doc.querySelectorAll('.port')].map(el=>[el.style.left,el.style.top]);
+ const before=positions(),labels=[...doc.querySelectorAll('.source-label')];
+ for(const el of labels)Object.defineProperties(el,{offsetWidth:{value:205},offsetHeight:{value:66}});
+ doc.querySelector('#camera-reset').onclick();
+ for(const el of labels){const x=Number.parseFloat(el.style.left);assert.ok(x>=110.5&&x<=419.5,'caption remains within the scene');}
+ assert.deepEqual(positions(),before,'only captions shift; ports stay on their projected coordinates');
+ assert.equal(JSON.stringify(app.api.getState()),state);
 });
 
 test('attention outlets distinguish attention weights from aggregated and projected features',async()=>{
