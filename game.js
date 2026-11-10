@@ -1,5 +1,5 @@
 import {cardFor,exampleFor,scoreComparison,aggregationExample} from './module-cards.js?v=ffn-progression-1';
-import {createProgress} from './level-progress.js?v=ffn-dedup-1';
+import {createProgress} from './level-progress.js?v=url-navigation-1';
 const M=window.NeuralPrologue,$=s=>document.querySelector(s),clone=x=>JSON.parse(JSON.stringify(x));
 const fmt=x=>x===-Infinity?'−∞':Number.isFinite(x)?Number(x.toFixed(2)).toString():'?';
 const vector=v=>v?'['+v.map(fmt).join(', ')+']':I18n.t("等待输入");
@@ -36,13 +36,37 @@ I18n.prepare({definitions:M.definitions,levels:M.levels,routes:M.routes,controls
 for(const id of Object.keys(M.levels))I18n.prepare(M.samplesFor(id));
 I18n.activate();
 const progress=createProgress(M,localStorage);
-function levelFromHash(){try{const id=decodeURIComponent((window.location?.hash||'').slice(1));return M.resolveLevelId(id);}catch{return null;}}
-function writeLevelHash(id,replace=false){
- const loc=window.location,nav=window.history;if(!loc||!nav||loc.hash==='#'+id)return;
- nav[replace?'replaceState':'pushState'](null,'',loc.pathname+loc.search+'#'+id);
+function normalizeNavigation(target){
+ const levelId=M.resolveLevelId(target.levelId)||progress.current(),screen=['game','levels'].includes(target.screen)?target.screen:'home';
+ if(screen!=='levels')return {screen,levelId};
+ const trackId=Object.hasOwn(M.routes,target.trackId)?target.trackId:M.levels[levelId].track,groups=M.routes[trackId].groups;
+ const groupId=(groups?.find(g=>g.id===target.groupId)||groups?.find(g=>g.ids.includes(levelId))||groups?.[0])?.id;
+ return {screen,levelId,trackId,groupId,returnScreen:target.returnScreen==='game'?'game':'home'};
 }
-let stageId=levelFromHash()||progress.current(),state=progress.load(stageId),history=[],selected=null,pending=null,current=null,results=[],sample=0,busy=false,paused=false,pauseStarted=0,pausedDuration=0,runId=0,level=99,world=null,fault=null;
-let selectedWire=null,actionNode=null,placing=null,lastFusionKind=null,menuTrack=M.levels[stageId].track,levelMenuFromHome=false;
+function readNavigation(hash=window.location?.hash||''){
+ try{
+  const fragment=hash.replace(/^#/,'');decodeURIComponent(fragment);
+  const [page,query='']=fragment.split('?'),id=M.resolveLevelId(decodeURIComponent(page));
+  if(id)return normalizeNavigation({screen:'game',levelId:id});
+  if(page==='home'||page==='menu'){
+   const fields=Object.fromEntries(query.split('&').filter(Boolean).map(pair=>{const [key,...value]=pair.split('=');return [decodeURIComponent(key),decodeURIComponent(value.join('='))];}));
+   return normalizeNavigation({screen:page==='menu'?'levels':'home',levelId:fields.lesson,trackId:fields.track,groupId:fields.group,returnScreen:fields.from});
+  }
+ }catch{}
+ return normalizeNavigation({screen:'home'});
+}
+function navigationHash(target){
+ if(target.screen==='game')return '#'+target.levelId;
+ if(target.screen==='home')return '#home?lesson='+target.levelId;
+ return '#menu?lesson='+target.levelId+'&track='+target.trackId+(target.groupId?'&group='+target.groupId:'')+'&from='+target.returnScreen;
+}
+function writeNavigation(target,replace=false){
+ const loc=window.location,nav=window.history,hash=navigationHash(target);if(!loc||!nav||loc.hash===hash)return;
+ nav[replace?'replaceState':'pushState'](null,'',loc.pathname+loc.search+hash);
+}
+const initialNavigation=readNavigation();let navigationState=null;
+let stageId=initialNavigation.levelId,state=progress.load(stageId,{resume:true}),history=[],selected=null,pending=null,current=null,results=[],sample=0,busy=false,paused=false,pauseStarted=0,pausedDuration=0,runId=0,level=99,world=null,fault=null;
+let selectedWire=null,actionNode=null,placing=null,lastFusionKind=null,menuTrack=M.levels[stageId].track,menuGroup=null;
 let demoSamples=null;
 const stage=()=>M.levels[stageId],samples=()=>demoSamples||(M.samplesFor?.(stageId)||M.samples),save=()=>progress.save(state);
 const kindOf=id=>M.kindOf(state,id),definition=id=>M.definitionFor(state,id),weightsFor=id=>M.weights[kindOf(id)],nodeName=id=>M.nodeName(state,id);
@@ -203,7 +227,8 @@ function stageChrome(){
  $('#demo-follow').hidden=!c.floating;$('#demo-follow-next').hidden=!c.floating;$('#demo-follow-view').hidden=!c.floating;$('#demo-pan').hidden=false;$('#demo-views').hidden=!c.demonstration;$('#demo-views').innerHTML=(c.demoViews||[]).map(view=>`<button type="button" data-demo-view="${view.key}">${view.label}</button>`).join('');
  document.body.dataset.stageColor=stageColor(c);renderStructureMap();document.body.classList.toggle('engine-level',!!c.engine);$('#device-docks').hidden=!c.engine;resetReport();$('#engine-controls').hidden=!c.engine;engineControls();$('.scene-legend').hidden=c.nodes.length===0;$('.scene-identity .chip').textContent=c.demonstration?I18n.t('完整演示'):I18n.t('自由接线');$('#scene-help').textContent=c.floating?I18n.t('拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放'):c.demonstration?I18n.t('拖动转动视角 · 双击查看基础组件'):c.nodes.length?I18n.t("拖模块摆放 · 点连线删除 · 双击查看模块卡"):I18n.t("圆口出，方口进 · 拖动空白转动视角");$('#pass-count').textContent='0 / '+c.sampleCount;document.title=I18n.t("神经工坊 · ")+c.title;$('.chapter span').textContent=c.chapter;$('.chapter strong').textContent=c.title;
  $('.mission h2').textContent=c.mission;$('.mission p').textContent=c.description;$('#mission-limits').innerHTML=c.engine?Object.entries(c.limits).map(([key,value])=>{const [name,unit]=M.metricLabels[key];return `<span>${name} ${key==='tps'||key==='aneMin'?'≥':'≤'} ${value} ${unit}</span>`;}).join(''):'';
- const reason=c.rationale;$('#mission-reason').hidden=!reason;
+ const reason=c.rationale,details=$('#mission-details');$('#mission-reason').hidden=!reason;
+ if(details.dataset.lesson!==c.id){details.toggleAttribute('open',!!c.practice||c.id==='pack-scores');details.dataset.lesson=c.id;}
  $('#mission-reason-title').textContent=reason?.title||I18n.t("为什么要这样算");
  for(const field of ['text','takeaway','scope']){
   const el=$('#mission-reason-'+field);el.textContent=reason?.[field]||'';el.hidden=!reason?.[field];
@@ -231,7 +256,7 @@ function stageChrome(){
   $('#mission-reason-example').innerHTML+=c.packages.map(kind=>`<details class="package-primer" ${introduction?'open':''}><summary>${c.packageLabel||(c.id==='pack-scores'?I18n.t('已收录组件'):I18n.t('新组合组件'))} · ${M.definitions[kind].name}</summary>${packageDiagram(kind)}</details>`).join('');
  }
  $('#mission-reason-example').hidden=!$('#mission-reason-example').hasChildNodes();
- $('.route').innerHTML=`${c.routeInput?'<span>'+c.routeInput+'</span><i>→</i>':I18n.t("<span>输入 token</span><i>→</i>")}${c.id==='ffn'?I18n.t("<span>归一化输入 · 已就绪</span><i>→</i>"):''}<strong>${c.concept}</strong><i>→</i><span>${c.outputTitle}${I18n.t("</span><span class=\"route-tail\">教学缩尺 ")}${c.shape}</span>`;
+ $('.route').innerHTML=`${c.routeInput?'<span>'+c.routeInput+'</span><i>→</i>':I18n.t("<span>输入 token</span><i>→</i>")}${c.id==='ffn'?I18n.t("<span>归一化输入 · 已就绪</span><i>→</i>"):''}${c.concept===c.title?'':'<span>'+c.concept+'</span><i>→</i>'}<strong>${c.outputTitle}</strong>${I18n.t('<span class="route-tail">教学缩尺 ')}${c.shape}</span>`;
 }
 function renderLevelMenu(){
  const route=M.routes[menuTrack],list=$('#level-list'),navigation=$('#level-stage-nav');
@@ -242,29 +267,61 @@ function renderLevelMenu(){
  list.setAttribute('aria-labelledby','level-track-'+menuTrack);list.classList.toggle('grouped-levels',!!route.groups);
  const card=id=>{
   const c=M.levels[id],menu=c.menu;
-  return `<button type="button" class="level-choice ${id===stageId?'current':''} ${id===route.ids.at(-1)?'track-finale':''} ${menu?'lesson-kind-'+menu.kind:''}" data-level="${id}" ${id===stageId?'aria-current="step"':''}><span class="level-choice-top"><span>${c.chapter}</span><span>${progress.completed(id)?I18n.t("✓ 已通过"):id===stageId?I18n.t("当前关卡"):''}</span></span>${menu?`<span class="level-purpose">${menu.label}</span>`:''}<strong>${c.title}</strong><span>${menu?.summary||c.summary}</span>${menu?.connection?`<span class="lesson-connection">${menu.connection}</span>`:''}<small>${c.buildable?I18n.t('最多 ')+M.moduleLimit(c):c.nodes.length}${I18n.t(" 个计算模块 · ")}${c.engine?I18n.t("正确性 + 性能验收"):c.buildable?I18n.t("自行放置组件"):c.sampleCount+I18n.t(" 组输入")}</small></button>`;
+  return `<button type="button" class="level-choice ${id===stageId?'current':''} ${id===route.ids.at(-1)?'track-finale':''}" data-level="${id}" ${id===stageId?'aria-current="step"':''}><span class="level-choice-top"><span>${c.chapter}</span><span>${progress.completed(id)?I18n.t("✓ 已通过"):id===stageId?I18n.t("当前关卡"):''}</span></span>${c.demonstration?`<span class="level-purpose">${menu.label}</span>`:''}<strong>${c.title}</strong><span>${menu?.summary||c.summary}</span></button>`;
  };
  if(!route.groups){list.innerHTML=route.ids.map(card).join('');return;}
  const groupId=group=>'level-group-'+menuTrack+'-'+group.id;
- const groupCards=group=>group.id==='decoder'?group.ids.slice(0,2).map(card).join('')+`<div class="decoder-lesson-chain" aria-label="${M.levelMenuCopy.decoderSteps}"><h4>${M.levelMenuCopy.decoderSteps}</h4>${group.ids.slice(2).map(card).join('')}</div>`:group.ids.map(card).join('');
+ const lessonNotes=ids=>ids.filter(id=>M.levels[id].menu).map(id=>{const c=M.levels[id],menu=c.menu;return `<div class="lesson-note" data-lesson-note="${id}"><b>${c.chapter} · ${c.title}</b><span class="level-purpose">${menu.label}</span>${menu.connection?`<span class="lesson-connection">${menu.connection}</span>`:''}</div>`;}).join('');
  const connections=flow=>`<div class="level-dependencies" aria-label="${M.levelMenuCopy.connections}"><div class="level-dependency-sources">${flow.sources.map(source=>`<div><small>${source.label}</small><b>${source.text}</b></div>`).join('')}</div><svg viewBox="0 0 32 80" aria-hidden="true"><path d="M2 18 H14 V40 H28 M2 62 H14 V40 M23 35 L28 40 L23 45"/></svg><div class="level-dependency-target"><small>${flow.target.label}</small><b>${flow.target.text}</b></div></div>`;
- navigation.innerHTML=route.groups.map(group=>`<button type="button" data-level-group-target="${groupId(group)}" data-stage-color="${group.id}" ${group.ids.includes(stageId)?'aria-current="step"':''}>${group.label}</button>`).join('');
- list.innerHTML=route.groups.map(group=>`<section class="level-group" id="${groupId(group)}" data-level-group="${group.id}" aria-labelledby="${groupId(group)}-title"><header class="level-group-heading"><div><h3 id="${groupId(group)}-title">${group.title}</h3><small>${group.ids.filter(id=>progress.completed(id)).length} / ${group.ids.length} ${M.levelMenuCopy.progress}</small></div><p>${group.description}</p></header>${group.connections?connections(group.connections):''}<div class="level-group-cards">${groupCards(group)}</div></section>`).join('');
+ navigation.innerHTML=route.groups.map(group=>`<button type="button" data-level-group-target="${groupId(group)}" data-stage-color="${group.id}" ${group.id===menuGroup?'aria-current="step"':''}>${group.label}</button>`).join('');
+ list.innerHTML=route.groups.map(group=>`<section class="level-group" id="${groupId(group)}" data-level-group="${group.id}" aria-labelledby="${groupId(group)}-title"><header class="level-group-heading"><div><h3 id="${groupId(group)}-title">${group.label}</h3><small>${group.ids.filter(id=>progress.completed(id)).length} / ${group.ids.length} ${M.levelMenuCopy.progress}</small></div></header><div class="level-group-cards">${group.ids.map(card).join('')}</div><details class="level-group-details"><summary>${M.levelMenuCopy.connections}</summary><p>${group.description}</p>${group.connections?connections(group.connections):''}${group.id==='decoder'?`<h4>${M.levelMenuCopy.decoderSteps}</h4>`:''}${lessonNotes(group.ids)}</details></section>`).join('');
 }
-function levelMenu(fromHome=false){
- closeHint();levelMenuFromHome=fromHome===true;document.body.dataset.screen='levels';
- menuTrack=stage().track;renderLevelMenu();$('#level-menu').showModal();const current=$('#level-list .current');current?.focus?.({preventScroll:true});current?.closest('.level-group')?.scrollIntoView({block:'start'});current?.scrollIntoView({block:'nearest'});
+function positionLevelMenu(focus=true){
+ const group=menuGroup?document.getElementById('level-group-'+menuTrack+'-'+menuGroup):null;
+ const current=group?.querySelector('.current')||(!menuGroup?$('#level-list .current'):null);
+ if(focus)(current||$('#level-stage-nav [aria-current]')||$('#level-tracks [aria-selected="true"]'))?.focus?.({preventScroll:true});
+ $('.level-menu-content').scrollTop=0;group?.scrollIntoView({block:'start'});
 }
-function enterSelectedLevel(){document.body.dataset.screen='game';$('#level-menu').close();$('#run').focus?.({preventScroll:true});}
+function navigate(target,{source='user'}={}){
+ const next=normalizeNavigation(target),same=navigationState&&navigationHash(next)===navigationHash(navigationState);
+ // Both popstate and hashchange can describe the same history entry.
+ shell?.cancelEnter();
+ if(same){
+  if(source==='user'){if(next.screen==='levels')positionLevelMenu(false);else if(next.screen==='home')shell?.showScreen('home');else closeCompletion();}
+  writeNavigation(next,true);return;
+ }
+ const changedLevel=next.levelId!==stageId,reuseMenu=navigationState?.screen==='levels'&&navigationState.trackId===next.trackId&&!changedLevel;
+ if(changedLevel||next.screen!=='game')stopRun();
+ if(changedLevel||navigationState?.screen==='game')save();
+ closeCompletion();$('#settings').close();$('#about').close();
+ if(next.screen!=='game'){
+  closeHint();resetReport();if($('#module-card').open)$('#card-close').onclick?.();
+  pending=selectedWire=placing=actionNode=null;world?.clearPreview?.();world?.clearPlacement?.();world?.labels();
+ }
+ if(changedLevel){
+  world?.beforeStage();stageId=next.levelId;state=progress.load(stageId,{resume:source!=='user'});progress.select(stageId);
+  demoSamples=null;history=[];selected=pending=current=fault=selectedWire=placing=actionNode=lastFusionKind=null;engineReport=null;results=[];sample=0;level=99;
+  stageChrome();world?.setStage();save();refresh();say('');
+ }
+ navigationState=next;document.body.dataset.screen=next.screen;
+ if(next.screen!=='levels')$('#level-menu').close();
+ shell?.showScreen(next.screen);
+ if(next.screen==='levels'){
+  menuTrack=next.trackId;menuGroup=next.groupId;
+  if(reuseMenu)for(const button of $('#level-stage-nav').children){if(button.dataset.levelGroupTarget==='level-group-'+menuTrack+'-'+menuGroup)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');}
+  else renderLevelMenu();
+  if(!$('#level-menu').open)$('#level-menu').showModal();positionLevelMenu();
+ }else if(next.screen==='game')$('#run').focus?.({preventScroll:true});
+ writeNavigation(next,source!=='user');
+}
+function levelMenu(fromHome=false){navigate({screen:'levels',levelId:stageId,returnScreen:fromHome===true?'home':'game'});}
 function switchLevel(id,fromHash=false){
- id=M.resolveLevelId(id);
- if(busy||!M.levels[id])return;closeCompletion();if(id===stageId){enterSelectedLevel();return;}
- save();world?.beforeStage();stageId=id;state=progress.load(id);progress.select(id);
- demoSamples=null;history=[];selected=pending=current=fault=selectedWire=placing=actionNode=lastFusionKind=null;engineReport=null;results=[];sample=0;level=99;
- stageChrome();world?.setStage();save();refresh();enterSelectedLevel();say('');if(!fromHash)writeLevelHash(id);
+ id=M.resolveLevelId(id);if((busy&&!fromHash)||!id)return;
+ navigate({screen:'game',levelId:id},{source:fromHash?'history':'user'});
 }
-stageChrome();progress.select(stageId);save();writeLevelHash(stageId,true);
-const shell=window.AtelierShell?.init({beforeLanguageChange:save,onEnter:()=>levelMenu(true),beforeHome:()=>{if(busy)run();save();closeHint();$('#level-menu').close();}});
+stageChrome();progress.select(stageId);save();
+const shell=window.AtelierShell?.init({beforeLanguageChange:save,onEnter:()=>levelMenu(true),onHome:()=>navigate({screen:'home',levelId:stageId})});
+navigate(initialNavigation,{source:'boot'});
 I18n.onChange(()=>{
  const reportWasOpen=!$('#run-report').hidden;
  if(current&&(stage().cloudSingle||current.componentIssue))current=M.evaluate(state,samples()[sample].v);
@@ -272,16 +329,14 @@ I18n.onChange(()=>{
  if(engineReport)engineReport=M.engineReport(state);
  if(reportWasOpen)renderReport();
  if(!busy)say('');
- if($('#level-menu').open)renderLevelMenu();
+ if($('#level-menu').open){renderLevelMenu();positionLevelMenu(false);}
  if($('#level-complete').open)renderCompletion();
 });
-window.addEventListener?.('hashchange',()=>{
- const target=levelFromHash();if(!target){writeLevelHash(stageId,true);return;}
- if(target!==stageId&&busy){busy=paused=false;runId++;world?.clearPackets();}
- switchLevel(target,true);writeLevelHash(stageId,true);
-});
+function restoreNavigation(){navigate(readNavigation(),{source:'history'});}
+window.addEventListener?.('popstate',restoreNavigation);
+window.addEventListener?.('hashchange',restoreNavigation);
 const levelDialog=$('#level-menu');let levelBackdropStart=null;
-function closeLevelMenu(){levelBackdropStart=null;levelDialog.close();if(levelMenuFromHome)shell?.home();else{document.body.dataset.screen='game';$('#levels-open').focus?.({preventScroll:true});}}
+function closeLevelMenu(){levelBackdropStart=null;navigate({screen:navigationState.returnScreen,levelId:stageId});if(navigationState.screen==='game')$('#levels-open').focus?.({preventScroll:true});}
 function outsideLevelDialog(e){const r=levelDialog.getBoundingClientRect();return e.target===levelDialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);}
 $('#levels-open').onclick=levelMenu;$('#levels-close').onclick=closeLevelMenu;
 levelDialog.addEventListener('pointerdown',e=>{levelBackdropStart=e.button===0&&e.isPrimary!==false&&outsideLevelDialog(e)?{id:e.pointerId,x:e.clientX,y:e.clientY}:null;});
@@ -294,9 +349,9 @@ levelDialog.addEventListener('click',e=>{
 });
 levelDialog.addEventListener('cancel',e=>{e.preventDefault();closeLevelMenu();});
 levelDialog.addEventListener('close',()=>levelBackdropStart=null);
-$('#level-stage-nav').onclick=e=>{const jump=e.target.closest('[data-level-group-target]');if(jump)document.getElementById(jump.dataset.levelGroupTarget)?.scrollIntoView({block:'start'});};
+$('#level-stage-nav').onclick=e=>{const jump=e.target.closest('[data-level-group-target]'),group=jump&&document.getElementById(jump.dataset.levelGroupTarget);if(group)navigate({...navigationState,groupId:group.dataset.levelGroup});};
 $('#level-list').onclick=e=>{const b=e.target.closest('[data-level]');if(b)switchLevel(b.dataset.level);};
-$('#level-tracks').onclick=e=>{const b=e.target.closest('[data-track]');if(b){menuTrack=b.dataset.track;renderLevelMenu();$('.level-menu-content').scrollTop=0;}};
+$('#level-tracks').onclick=e=>{const b=e.target.closest('[data-track]');if(b&&b.dataset.track!==menuTrack)navigate({...navigationState,trackId:b.dataset.track,groupId:null});};
 $('#next-level').onclick=()=>switchLevel(stage().next);
 function say(text,tone=''){$('#feedback').textContent=text;$('#feedback').className='feedback '+tone;}
 function checkpoint(){history.push(clone(state));if(history.length>40)history.shift();}
@@ -383,10 +438,14 @@ function renderGeneration(){
  $('#demo-transcript').replaceChildren(...[...seed,...generated].map((id,i)=>{const el=document.createElement('span');el.className=i<seed.length?'seed-token':'generated-token';el.textContent=M.math.vocab[id];return el;}));
  $('#demo-transcript').setAttribute('aria-label',I18n.t('完整文字'));
 }
-function refresh(){renderGeneration();refreshPauseControl();$('#progress-reset').disabled=busy;$('#progress-reset-apply').disabled=busy;$('#progress-restart').disabled=busy;$('#progress-restart-undo').disabled=busy;$('#progress-restart-undo').hidden=!progress.canUndoRestart();document.body.classList.toggle('network-running',busy);renderShelf();const t=samples()[sample];const won=levelPassed();$('.route strong').textContent=stage().concept+(won?I18n.t(" · 已通过"):'');$('#next-level').hidden=!(won||progress.completed(stageId))||!stage().next;$('#levels-open').disabled=busy;$('#engine-controls').querySelectorAll('input,select,button').forEach(e=>e.disabled=busy);$('#device-docks').querySelectorAll('button').forEach(e=>e.disabled=busy);$('#sample-name').textContent=t.word;$('#sample-value').textContent=stage().generationRounds?I18n.t('目标输入 · 最近三个词'):stage().sequence?(stage().sourceDim===3?'Token ID '+vector(t.v):I18n.t(stage().sourceDim===12?"3 个位置 × 4 个特征":"3 个位置 × 2 个特征")):vector(t.v);$('#pass-count').textContent=results.filter(r=>r.pass).length+' / '+stage().sampleCount;$('#test-results').innerHTML=results.map((r,i)=>`<div class="test-row ${r.pass?'pass':'fail'}"><span>${r.pass?'✓':'×'} ${samples()[i].word}</span><span>${stage().tokenOutput&&r.actual?M.readTokens(r.actual):stage().sequence?(r.actual?I18n.t("矩阵 ")+shape(r.actual.length):I18n.t("等待输入")):(r.pass?vector(r.actual):comparisonValues(r.actual,r.expected).actual)}</span></div>`).join('');$('#run').disabled=!world;$('#run').innerHTML=busy?I18n.t("<span>■</span> 停止"):I18n.t("<span>▶</span> 试跑我的网络");$('#undo').disabled=busy||!history.length;$('#reset').disabled=busy;$('#reset').hidden=!!stage().demonstration;$('#undo').hidden=!!stage().demonstration;$('#restore-layout').hidden=!progress.canRestore(stageId,state);$('#restore-layout').disabled=busy;}
+function refresh(){renderGeneration();refreshPauseControl();$('#progress-reset').disabled=busy;$('#progress-reset-apply').disabled=busy;$('#progress-restart').disabled=busy;$('#progress-restart-undo').disabled=busy;$('#progress-restart-undo').hidden=!progress.canUndoRestart();document.body.classList.toggle('network-running',busy);renderShelf();const t=samples()[sample];const won=levelPassed();$('.route strong').textContent=stage().outputTitle+(won?I18n.t(" · 已通过"):'');$('#next-level').hidden=!(won||progress.completed(stageId))||!stage().next;$('#engine-controls').querySelectorAll('input,select,button').forEach(e=>e.disabled=busy);$('#device-docks').querySelectorAll('button').forEach(e=>e.disabled=busy);$('#sample-name').textContent=t.word;$('#sample-value').textContent=stage().generationRounds?I18n.t('目标输入 · 最近三个词'):stage().sequence?(stage().sourceDim===3?'Token ID '+vector(t.v):I18n.t(stage().sourceDim===12?"3 个位置 × 4 个特征":"3 个位置 × 2 个特征")):vector(t.v);$('#pass-count').textContent=results.filter(r=>r.pass).length+' / '+stage().sampleCount;$('#test-results').innerHTML=results.map((r,i)=>`<div class="test-row ${r.pass?'pass':'fail'}"><span>${r.pass?'✓':'×'} ${samples()[i].word}</span><span>${stage().tokenOutput&&r.actual?M.readTokens(r.actual):stage().sequence?(r.actual?I18n.t("矩阵 ")+shape(r.actual.length):I18n.t("等待输入")):(r.pass?vector(r.actual):comparisonValues(r.actual,r.expected).actual)}</span></div>`).join('');$('#run').disabled=!world;$('#run').innerHTML=busy?I18n.t("<span>■</span> 停止"):I18n.t("<span>▶</span> 试跑我的网络");$('#undo').disabled=busy||!history.length;$('#reset').disabled=busy;$('#reset').hidden=!!stage().demonstration;$('#undo').hidden=!!stage().demonstration;$('#restore-layout').hidden=!progress.canRestore(stageId,state);$('#restore-layout').disabled=busy;}
+function stopRun(){
+ if(!busy&&!paused)return;
+ busy=paused=false;runId++;world?.clearPackets();world?.labels();refresh();
+}
 async function run(){
  closeHint();closeCompletion();world?.clearConnectionError?.();
- if(busy){busy=paused=false;runId++;say(I18n.t("已停止。"));world.clearPackets();world.labels();refresh();return;}
+ if(busy){stopRun();say(I18n.t("已停止。"));return;}
  busy=true;paused=false;pausedDuration=0;pending=selectedWire=placing=actionNode=lastFusionKind=null;world.clearPreview?.();world.clearPlacement?.();fault=null;engineReport=null;results=[];demoSamples=stage().generationRounds?M.samplesFor(stageId).map(t=>M.demo.sampleFor(t.v)):null;sample=0;current=null;resetReport();if(demoSamples)world.relocalize();const id=++runId;
  for(let i=0;i<stage().sampleCount;i++){
   sample=i;current=M.evaluate(state,samples()[i].v);level=0;
@@ -653,6 +712,8 @@ try{
    if(stage().floating&&(depth<=camera.near||xyz.clone().project(camera).z>1))el.hidden=true;
    if(el.classList.contains('local-fault')||el.classList.contains('wire-actions')){
     el.style.left=Math.max(12,Math.min(w-width-12,x+18))+'px';el.style.top=Math.max(12,Math.min(h-height-46,y+15))+'px';
+   }else if(el.classList.contains('source-label')&&!stage().floating&&x>=0&&x<=w){
+    const half=width*localScale/2+8;el.style.left=Math.max(half,Math.min(w-half,x))+'px';el.style.top=y+'px';
    }else{el.style.left=x+'px';el.style.top=y+'px';}
   });
   packets.forEach(p=>{

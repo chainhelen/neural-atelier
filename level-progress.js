@@ -86,6 +86,10 @@ export function createProgress(M,storage){
    if(!write(completedKey(id),s))return s;const fresh=M.initial(id);
    meta.practiceRuns[id]={finished:false};write(key(id),fresh);write(metaKey,meta);return fresh;
   }
+  if(resume&&finished){
+   if(!run){meta.practiceRuns[id]={finished:true,circuit:circuitKey(s)};write(metaKey,meta);}
+   return s;
+  }
   if(!run||run.finished){meta.practiceRuns[id]={finished:false};write(metaKey,meta);}
   return s;
  }
