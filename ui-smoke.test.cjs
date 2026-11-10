@@ -1485,10 +1485,14 @@ test('the English interface explains the same terms as the Chinese one',()=>{
  const zh=marks(zhApp),en=marks(enApp);
  assert.ok(en.length>=zh.length,'the English interface marks at least as many curated terms as the Chinese one');
  assert.ok(about(zhApp).includes('残差'),'the Chinese prose explains the residual connection');
- assert.ok(about(zhApp).includes('多头注意力'),'the Chinese prose explains multi-head attention');
  assert.ok(about(enApp).includes('residuals'),'the English prose explains the same residual connection');
- assert.ok(about(enApp).includes('multi-head attention'),'the English prose explains the same multi-head attention');
  assert.equal(about(enApp).length,about(zhApp).length,'the prose carries the same number of explanations in both languages');
+ // The About copy no longer names multi-head attention, so check the term on
+ // the mission panel that does introduce it.
+ const zhHead=boot(new Map(),'#multihead'),enHead=boot(new Map([['neural-atelier-language-v1','en']]),'#multihead');
+ const mission=app=>[...app.document.querySelectorAll('.mission .glossary-term')].map(el=>el.textContent);
+ assert.ok(mission(zhHead).includes('注意力头'),'the Chinese mission panel explains the attention head');
+ assert.ok(mission(enHead).includes('Attention head'),'the English mission panel explains the same attention head');
  const probe=JSON.parse(enApp.eval(`(()=>{const box=document.createElement('div');box.innerHTML='<p>residuals projections activations vocabulary scoring multi-head attention single-head attention normalize normalized project</p>';document.body.appendChild(box);glossary.scan(box);return JSON.stringify([...box.querySelectorAll('.glossary-term')].map(el=>el.textContent));})()`));
  assert.deepEqual(probe,['residuals','projections','activations','vocabulary scoring','multi-head attention','single-head attention','normalize','normalized','project'],'every English surface of a curated term is explained');
  assert.deepEqual([...enApp.c.I18n.missing],[]);
