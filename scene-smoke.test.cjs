@@ -1486,11 +1486,32 @@ test('sequence packets represent all three rows, and extra validation samples ar
    const active=[];app.scenes.at(-1).traverse(o=>{if(o.userData.sourceRow!=null&&o.userData.active)active.push(o.userData.sourceRow);});assert.deepEqual(active,[0,1,2]);
   }else if(el.dataset.row==='validation'){
    validationFrames++;assert.match(el.querySelector('.packet-title').textContent,/^新输入 [AB]$/);
-   app.scenes.at(-1).traverse(o=>{if(o.userData.sourceRow!=null)assert.equal(o.userData.active,false);});
+   const active=[];app.scenes.at(-1).traverse(o=>{if(o.userData.sourceRow!=null&&o.userData.active)active.push(o.userData.sourceRow);});assert.deepEqual(active,[0]);
   }
  }});
  for(const id of ['attention','gating']){mode=id==='attention'?'sequence':'row';app.api.switchLevel(id);app.api.setState(app.c.NeuralPrologue.solutions(id));app.api.getWorld().rebuild();await app.api.run();}
  assert.ok(sequenceFrames>0);assert.ok(validationFrames>0);
+});
+
+test('extra scalar validation cases replace the first input and output matrix rows',async()=>{
+ let app;const seen=new Set();
+ app=await boot({reduced:false,frameMs:40,onFrame:({document})=>{
+  if(!app)return;const name=document.querySelector('#sample-name').textContent;if(!/^新输入 [AB]$/.test(name))return;
+  const M=app.c.NeuralPrologue,example=M.samplesFor('workshop').find(item=>item.word===name),scene=app.scenes.at(-1),source=[],output=[];
+  scene.traverse(o=>{
+   const text=o.children?.filter(c=>c.material?.map).map(c=>c.material.map.image.drawnText);
+   if(o.userData.sourceRow!=null&&o.userData.active)source.push([o.userData.sourceRow,...text]);
+   if(o.userData.sinkRow!=null&&o.userData.active)output.push([o.userData.sinkRow,...text]);
+  });
+  assert.equal(source.length,1);assert.equal(output.length,1);
+  assert.deepEqual(source[0],[0,name,...example.v.map(value=>String(Number(value.toFixed(2))))]);
+  assert.equal(output[0][0],0);assert.equal(output[0][1],name.at(-1));
+  if(output[0].at(-1)==='·')return;
+  assert.deepEqual(output[0].slice(3),Array.from(M.reference(example.v,'workshop'),value=>String(Number(value.toFixed(2)))));
+  seen.add(name);
+ }});
+ app.api.switchLevel('workshop');app.api.setState(app.c.NeuralPrologue.solutions('workshop'));app.api.getWorld().rebuild();await app.api.run();
+ assert.deepEqual([...seen].sort(),['新输入 A','新输入 B']);
 });
 
 test('projection travels continuously through the matrix and animates only nonzero weighted contributions',async()=>{

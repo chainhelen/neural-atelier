@@ -894,8 +894,8 @@ try{
   const timings=schedule.nodes,ends=schedule.depthEnds,lastWave=ends.length-1;
   // Reveal the actual matrix only after its packet reaches the outlet, then
   // give it reading time on the same pausable, speed-controlled clock.
-  const outlet=stage().outputArrivalHold&&seq&&ev.output&&curves.find(edge=>edge.to==='sink'&&ev.values[edge.from]);
-  const arrived=outlet?(timings.get(outlet.from)?.end||0)+travelDuration:null,hold=outlet?stage().outputArrivalHold/ms:0;
+  const outlet=(stage().outputArrivalHold&&seq||!seq&&sample>=3)&&ev.output&&curves.find(edge=>edge.to==='sink'&&ev.values[edge.from]);
+  const arrived=outlet?(timings.get(outlet.from)?.end||0)+travelDuration:null,hold=outlet?(stage().outputArrivalHold??450)/ms:0;
   const max=outlet?Math.max(schedule.end,arrived+hold):schedule.end;
   if(independent)playbackTimeline={nodes:timings,time:-1};
   // The complete model uses the same operation clock as every teaching level.

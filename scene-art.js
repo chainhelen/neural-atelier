@@ -421,20 +421,21 @@ export function createSceneArt(T,scene,colors,{anisotropy=1}={}){
    u.connections.forEach(({mesh,i,weight})=>{const lit=active&&input&&Math.abs(input[i]*weight)>1e-9;mesh.material.opacity=(input?(lit?.95:.08):(weight===0?.2:.8))*(1-.92*u.focusAmount);mesh.material.depthWrite=u.focusAmount===0;mesh.material.emissive.set(lit?u.color:0x000000);mesh.material.emissiveIntensity=lit?.6:0;});
    u.outputs.forEach((o,i)=>{const v=completed?values[id][i]:null;o.scale.setScalar(!Number.isFinite(v)?1:1+Math.min(2,Math.abs(v))*.18);o.material.color.set(Number.isFinite(v)&&v<0?0xc79868:u.color);o.material.emissiveIntensity=active?1.1:completed?.35:.08;});
   }
-  const {samples}=context.userData,seq=!!layout.sequence,input=seq?samples[activeSample].v:null;
+  const {samples}=context.userData,seq=!!layout.sequence,input=seq?samples[activeSample].v:null,validation=!seq&&busy&&activeSample>=3;
   const words=seq?samples[activeSample].word.split(' / '):samples.slice(0,3).map(s=>s.word);
   if(layout.outputPairAxes){rows.forEach((r,i)=>r.label.write(words[i]));outputHeaders.forEach((h,i)=>h.write(words[i]));}
   const sourceValues=layout.dualSource?window.NeuralPrologue.sourceValues({levelId:layout.id},input):null;
-  tokens.forEach(t=>{const i=t.index,secondary=t.sourceId==='Z',v=secondary?sourceValues.Z:input;t.label.write(secondary?window.NeuralPrologue.math.vocab[layout.secondaryTokenIds[i]]:words[i]);t.g.userData.active=busy&&(seq||i===activeSample);t.cells.forEach((c,j)=>{const value=seq?v[i*t.cells.length+j]:samples[i].v[j];c.write(Number.isFinite(value)?Number(value.toFixed(2)).toString():'·');});});
+  tokens.forEach(t=>{const i=t.index,secondary=t.sourceId==='Z',v=secondary?sourceValues.Z:input,current=validation&&i===0?samples[activeSample]:samples[i];t.label.write(secondary?window.NeuralPrologue.math.vocab[layout.secondaryTokenIds[i]]:validation&&i===0?current.word:words[i]);t.g.userData.active=busy&&(seq||(validation?i===0:i===activeSample));t.cells.forEach((c,j)=>{const value=seq?v[i*t.cells.length+j]:current.v[j];c.write(Number.isFinite(value)?Number(value.toFixed(2)).toString():'·');});});
   pulseSource();
   outputReadout(activeSample,results,busy,layout,tokenPreview,arrivalPreview);
  }
  function outputReadout(activeSample,results,busy,layout={},tokenPreview=null,arrivalPreview=null){
-  const seq=!!layout.sequence,flash=arrivalPreview?.pulse||0;
+  const seq=!!layout.sequence,validation=!seq&&busy&&activeSample>=3,flash=arrivalPreview?.pulse||0;
   rows.forEach((r,i)=>{
-   const active=busy&&(seq||i===activeSample);r.g.userData.active=active;r.stripe.material.emissiveIntensity=layout.outputArrivalHold?(arrivalPreview ? .3+1.6*flash : .1):active?1.3:.1;
+   const active=busy&&(seq||(validation?i===0:i===activeSample)),resultIndex=validation&&i===0?activeSample:i;r.g.userData.active=active;r.stripe.material.emissiveIntensity=layout.outputArrivalHold?(arrivalPreview ? .3+1.6*flash : .1):active?1.3:.1;
    r.panel.material.emissive.set(rowColor(i));r.panel.material.emissiveIntensity=.4*flash;
-   const result=seq?results[activeSample]:results[i],offset=seq?i*r.cells.length:0;
+   const result=seq?results[activeSample]:results[resultIndex],offset=seq?i*r.cells.length:0;
+   if(!seq&&!layout.outputPairAxes)r.label.write(validation&&i===0?(activeSample===3?'A':'B'):String(i));
    const actual=result?.actual||arrivalPreview?.values||(layout.tokenOutput?tokenPreview:null);
    const rowPass=result&&(seq?actual&&r.cells.every((_,j)=>Number.isFinite(actual[offset+j])&&Math.abs(actual[offset+j]-result.expected[offset+j])<(layout.engine?(layout.limits?.error||.06):1e-9)):result.pass);
    const tone=!result?'#558974':rowPass?'#397c61':'#a14d3d';
