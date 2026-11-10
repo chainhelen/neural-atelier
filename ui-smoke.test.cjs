@@ -10,7 +10,7 @@ function boot(storage=new Map(),hash='',languages=['zh-CN']){
  const navigation={pushState(_,title,url){location.href=new URL(url,location.href).href;entries.splice(++cursor);entries.push(location.href);},replaceState(_,title,url){location.href=new URL(url,location.href).href;entries[cursor]=location.href;},back(){if(cursor)traverse(cursor-1);},forward(){if(cursor+1<entries.length)traverse(cursor+1);},get length(){return entries.length;}};
  const c={window:{},document,console,navigator:{languages},location,history:navigation,addEventListener:(type,fn)=>listeners.set(type,fn),localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}};c.window=c;vm.createContext(c);
  for(const file of ['locales/en.js','i18n.js','music.js','shell.js','model.js','campaign.js','engine-model.js','original-curriculum.js','transformer-demo.js','cloud-curriculum.js','lesson-io.js','structure-map.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8'),c,{filename:file});
- for(const file of ['module-cards.js','level-progress.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8').replaceAll('export ',''),c,{filename:file});
+ for(const file of ['module-cards.js','level-progress.js','glossary.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8').replaceAll('export ',''),c,{filename:file});
  let code=fs.readFileSync(__dirname+'/game.js','utf8').replace(/^import .*\n/gm,'');code=code.slice(0,code.indexOf("try{\n const T="));
  vm.runInContext(code+`\nworld={relocalize(){},labels(){},rebuild(){},beforeStage(){},setStage(){},clearPackets(){},focused(){return null},async animate(){}};refresh();`,c);
  return {c,document,window,storage,location,navigation,hashchange,popstate,eval:code=>vm.runInContext(code,c)};
@@ -1429,4 +1429,51 @@ test('attention package diagrams unpack each head with separate QK and V paths i
   const card=M.extraCard('self-heads','encoder-layer');assert.match(card.meaning,language==='zh'?/全部 4 个输入特征/:/all four input features/);
  }
  assert.equal(app.eval('JSON.stringify(state)'),before);assert.deepEqual([...app.c.I18n.missing],[]);
+});
+
+test('glossary underlines curated terms and explains them in the active language',()=>{
+ const app=boot(new Map(),'#ffn'),doc=app.document,popover=doc.querySelector('#glossary-popover');
+ assert.ok(popover,'the glossary popover exists');
+ const mission=doc.querySelector('.mission h2'),term=mission.querySelector('.glossary-term');
+ assert.ok(term,'the mission heading marks a curated term');
+ assert.equal(term.textContent,'FFN');
+ assert.equal(term.getAttribute('tabindex'),'0','the term is reachable by keyboard');
+ assert.equal(term.getAttribute('aria-describedby'),'glossary-popover');
+ assert.equal(doc.querySelectorAll('.mission h2 .glossary-term').length,1,'a term is never marked twice');
+ assert.equal(popover.hidden,true,'the popover stays closed until the term is hovered or focused');
+ term.dispatchEvent(new app.window.Event('focusin',{bubbles:true}));
+ assert.equal(popover.hidden,false,'focus opens the same popover as hover');
+ assert.match(popover.textContent,/FFN/);
+ assert.match(popover.textContent,/Feed-Forward Network/,'the English name is offered in the Chinese interface');
+ assert.match(popover.textContent,/前馈网络（Feed-Forward Network）/);
+ assert.match(popover.textContent,/模块卡/,'the popover says where the term is explained in depth');
+ const escape=new app.window.Event('keydown');escape.key='Escape';doc.dispatchEvent(escape);
+ assert.equal(popover.hidden,true,'Escape dismisses the popover');
+ term.dispatchEvent(new app.window.Event('pointerover',{bubbles:true}));
+ assert.equal(popover.hidden,false,'hover opens the popover');
+ term.dispatchEvent(new app.window.Event('pointerout',{bubbles:true}));
+ assert.equal(popover.hidden,true,'leaving the term hides it again');
+ for(const [selector,label]of[['.route','route strip'],['#device-docks button[data-device=ane]','device dock'],['#about p','static prose']]){
+  assert.ok(doc.querySelectorAll(selector+' .glossary-term').length,label+' marks its terms');
+ }
+ app.eval('renderLevelMenu();showHint();');
+ assert.ok(doc.querySelectorAll('.level-menu-intro .glossary-term').length,'the level menu marks its terms');
+ assert.ok(doc.querySelectorAll('#level-list .glossary-term').length,'the level choices mark their terms');
+ assert.ok(doc.querySelectorAll('#structure-dialog-content .glossary-term').length,'the hint dialog marks its terms');
+ const marked=app.eval(`(()=>{const box=document.createElement('div');box.innerHTML='<p>FFNX FFNs FFN token</p><pre>FFN</pre><p><code>FFN</code><span class="card-vector">FFN</span><span class="stock-matrix">1</span></p>';document.body.appendChild(box);glossary.scan(box);const labels=[...box.querySelectorAll('.glossary-term')].map(el=>el.textContent);glossary.scan(box);return JSON.stringify({labels,count:box.querySelectorAll('.glossary-term').length});})()`);
+ const probe=JSON.parse(marked);
+ assert.deepEqual(probe.labels,['FFNs','FFN','token'],'matches whole terms only and never inside code or numeric cells');
+ assert.equal(probe.count,3,'scanning twice marks nothing twice');
+ const count=doc.querySelectorAll('.glossary-term').length;
+ app.eval('glossary.scan(document.body);glossary.scan(document.body);');
+ assert.equal(doc.querySelectorAll('.glossary-term').length,count,'re-scanning keeps the highlighting stable');
+ app.c.I18n.setPreference('en');
+ const after=doc.querySelector('.mission h2 .glossary-term');
+ assert.ok(after,'the highlighting survives a language switch');
+ assert.equal(after.textContent,'FFN');
+ after.dispatchEvent(new app.window.Event('focusin',{bubbles:true}));
+ assert.match(popover.textContent,/Feed-Forward Network —/,'the definition follows the active language');
+ assert.match(popover.textContent,/前馈网络/,'the Chinese name is offered in the English interface');
+ assert.ok(doc.querySelectorAll('#about p .glossary-term').length,'static prose keeps its highlighting after the switch');
+ assert.deepEqual([...app.c.I18n.missing],[]);
 });

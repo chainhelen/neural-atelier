@@ -20,7 +20,7 @@ async function boot({reduced=true,frameMs=1000,onFrame=()=>{},languages=['zh-CN'
  }
  c.window=c;vm.createContext(c);
  for(const f of ['locales/en.js','i18n.js','music.js','shell.js','model.js','campaign.js','engine-model.js','original-curriculum.js','transformer-demo.js','cloud-curriculum.js','lesson-io.js','structure-map.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8'),c,{filename:f});
- for(const f of ['module-cards.js','level-progress.js','scene-art.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8').replaceAll('export ',''),c,{filename:f});
+ for(const f of ['module-cards.js','level-progress.js','glossary.js','scene-art.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+f,'utf8').replaceAll('export ',''),c,{filename:f});
  let src=fs.readFileSync(__dirname+'/game.js','utf8').replace(/^import .*\n/gm,'').replace("const T=await import('./vendor/three.module.js');",'const T=window.T;').replace(/const \{createSceneArt\}=await import\('\.\/scene-art\.js\?v=[^']+'\);/,'');
  src=src.replace('world={relocalize','world={inspectTracking:()=>followTracking(),inspectFollow:()=>({packet:followedPacket,target:cameraTarget.clone(),active:activeFollowPackets(),seed:followSeed,zoom,followZoom,gliding:!!followFlight}),relocalize');
  src+='\nwindow.testAPI={switchLevel,navigate,readNavigation,run,togglePause,refresh,select,assignDevice,chooseOutput,chooseInput,chooseModule,placeModule,getState:()=>state,setState:s=>state=s,getWorld:()=>world,getFault:()=>fault,isCompleted:id=>progress.completed(id)};';
@@ -2345,4 +2345,25 @@ test('failed module placement shows a localized drop-point toast for clicks and 
   assert.equal(app.api.placeModule(2,0),true,'a rejected click can be retried at a valid spot');assert.equal(doc.querySelector('.connection-toast'),null);assert.equal(timers.pending,0);assert.equal(app.api.getState().nodes.length,2);
   assert.deepEqual([...app.c.I18n.missing],[]);
  }
+});
+test('module card prose marks curated terms and keeps them explained in both languages',async()=>{
+ const app=await boot(),doc=app.document,M=app.c.NeuralPrologue;
+ for(const language of ['zh','en']){
+  app.c.I18n.setPreference(language);
+  app.api.switchLevel('ffn');
+  const solution=M.solutions('ffn');app.api.setState(solution);app.api.getWorld().rebuild();app.api.refresh();
+  app.api.getWorld().focus(solution.nodes.find(n=>n.kind==='silu').id);
+  assert.equal(doc.querySelector('#module-card').open,true);
+  const card=doc.querySelector('#module-card'),term=card.querySelector('.glossary-term');
+  assert.ok(term,'the module card prose marks curated terms');
+  assert.equal(term.getAttribute('tabindex'),'0');
+  assert.equal(term.getAttribute('aria-describedby'),'glossary-popover');
+  const popover=doc.querySelector('#glossary-popover');
+  term.dispatchEvent(new app.window.Event('focusin',{bubbles:true}));
+  assert.equal(popover.hidden,false,'focus opens the glossary popover');
+  assert.match(popover.textContent,/激活|Activation/);
+  if(language==='en')assert.doesNotMatch(card.textContent,/[\u3400-\u9fff]/);
+  doc.querySelector('#card-close').onclick();
+ }
+ assert.deepEqual([...app.c.I18n.missing],[]);
 });

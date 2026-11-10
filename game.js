@@ -1,5 +1,6 @@
 import {cardFor,exampleFor,scoreComparison,aggregationExample} from './module-cards.js?v=ffn-progression-1';
 import {createProgress} from './level-progress.js?v=url-navigation-1';
+import {glossary} from './glossary.js?v=glossary-1';
 const M=window.NeuralPrologue,$=s=>document.querySelector(s),clone=x=>JSON.parse(JSON.stringify(x));
 const fmt=x=>x===-Infinity?'−∞':Number.isFinite(x)?Number(x.toFixed(2)).toString():'?';
 const vector=v=>v?'['+v.map(fmt).join(', ')+']':I18n.t("等待输入");
@@ -35,6 +36,7 @@ for(const layout of Object.values(M.levels))if(layout.sequence&&!layout.tokenOut
 I18n.prepare({definitions:M.definitions,levels:M.levels,routes:M.routes,controls:M.engineControls,metrics:M.metricLabels,vocab:M.math.vocab});
 for(const id of Object.keys(M.levels))I18n.prepare(M.samplesFor(id));
 I18n.activate();
+glossary.refresh();
 const progress=createProgress(M,localStorage);
 function normalizeNavigation(target){
  const levelId=M.resolveLevelId(target.levelId)||progress.current(),screen=['game','levels'].includes(target.screen)?target.screen:'home';
@@ -161,6 +163,7 @@ function renderCompletion(){
  $('#complete-next').textContent=stage().next?I18n.t("下一关 →"):I18n.t("选择关卡");
  const reward=M.fusions[stageId];$('#complete-reward').hidden=!reward;
  if(reward){$('#complete-reward>small').textContent=stage().buildable?M.fusionCopy.collected:M.fusionCopy.storedLater;$('#complete-reward>strong').textContent=M.definitions[reward.kind].name;}
+ glossary.scan(document.body);
 }
 function showCompletion(){if(busy||!levelPassed())return;renderCompletion();if(!$('#level-complete').open)$('#level-complete').showModal();}
 $('#complete-close').onclick=closeCompletion;
@@ -191,7 +194,7 @@ function renderReport(){
  if(stage().demonstration&&results.every(r=>r.pass))html+=I18n.t('<div class="campaign-complete"><span>主线完成</span><h3>从向量，到逐词生成</h3><p>所有主线关卡都可以重玩。端侧推理的独立挑战在关卡菜单的番外中。</p></div>');
  if(stageId==='capstone'&&engineReport?.pass&&results.every(r=>r.pass))html+=I18n.t("<div class=\"campaign-complete\"><span>番外完成</span><h3>从一个向量，到可运行的端侧引擎</h3><p>你已经完成数值计算、注意力、逐词生成，以及正确性、内存和速度的联合验收。所有关卡仍可重玩，继续比较不同调度方案。</p></div>");
  if(!stage().sequence)html+=I18n.t("<p>输入与输出都是特征向量，分别对应“我 / 爱 / 猫”，不是生成的新词。</p>");
- panel.innerHTML=html+I18n.t("</div><button type=\"button\" class=\"report-close\" data-close-report aria-label=\"关闭运行说明\" title=\"关闭运行说明\">×</button>");panel.hidden=false;
+ panel.innerHTML=html+I18n.t("</div><button type=\"button\" class=\"report-close\" data-close-report aria-label=\"关闭运行说明\" title=\"关闭运行说明\">×</button>");panel.hidden=false;glossary.scan(document.body);
 }
 $('#engine-controls').addEventListener('change',e=>{const key=e.target.dataset.setting;if(!key||busy)return;checkpoint();state.settings[key]=M.engineControls[key].values.find(([v])=>String(v)===e.target.value)[0];changed();});
 $('#device-docks').addEventListener('click',e=>{const b=e.target.closest('[data-device]');if(!b)return;if(!selected)return say(I18n.t("先选中需要分配的模块。"));assignDevice(selected,b.dataset.device);});
@@ -208,7 +211,7 @@ function renderStructureMap(){
  if($('#structure-dialog').open)$('#structure-dialog-content').innerHTML=M.structureMap.render(stageId,true);
 }
 function closeHint(restoreFocus=false){if(!$('#structure-dialog').open)return;$('#structure-dialog').close();if(restoreFocus)$('#hint').focus?.({preventScroll:true});}
-function showHint(){renderStructureMap();$('#structure-dialog-content').innerHTML=M.structureMap.render(stageId,true);if(!$('#structure-dialog').open)$('#structure-dialog').showModal();}
+function showHint(){renderStructureMap();$('#structure-dialog-content').innerHTML=M.structureMap.render(stageId,true);glossary.scan(document.body);if(!$('#structure-dialog').open)$('#structure-dialog').showModal();}
 $('#hint').onclick=showHint;
 $('#structure-close').onclick=()=>closeHint(true);
 $('#structure-dialog').addEventListener('click',e=>{if(e.target!==$('#structure-dialog'))return;const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeHint(true);});
@@ -257,6 +260,7 @@ function stageChrome(){
  }
  $('#mission-reason-example').hidden=!$('#mission-reason-example').hasChildNodes();
  $('.route').innerHTML=`${c.routeInput?'<span>'+c.routeInput+'</span><i>→</i>':I18n.t("<span>输入 token</span><i>→</i>")}${c.id==='ffn'?I18n.t("<span>归一化输入 · 已就绪</span><i>→</i>"):''}${c.concept===c.title?'':'<span>'+c.concept+'</span><i>→</i>'}<strong>${c.outputTitle}</strong>${I18n.t('<span class="route-tail">教学缩尺 ')}${c.shape}</span>`;
+glossary.scan(document.body);
 }
 function renderLevelMenu(){
  const route=M.routes[menuTrack],list=$('#level-list'),navigation=$('#level-stage-nav');
@@ -269,12 +273,13 @@ function renderLevelMenu(){
   const c=M.levels[id],menu=c.menu;
   return `<button type="button" class="level-choice ${id===stageId?'current':''} ${id===route.ids.at(-1)?'track-finale':''}" data-level="${id}" ${id===stageId?'aria-current="step"':''}><span class="level-choice-top"><span>${c.chapter}</span><span>${progress.completed(id)?I18n.t("✓ 已通过"):id===stageId?I18n.t("当前关卡"):''}</span></span>${c.demonstration?`<span class="level-purpose">${menu.label}</span>`:''}<strong>${c.title}</strong><span>${menu?.summary||c.summary}</span></button>`;
  };
- if(!route.groups){list.innerHTML=route.ids.map(card).join('');return;}
+ if(!route.groups){list.innerHTML=route.ids.map(card).join('');glossary.scan(document.body);return;}
  const groupId=group=>'level-group-'+menuTrack+'-'+group.id;
  const lessonNotes=ids=>ids.filter(id=>M.levels[id].menu).map(id=>{const c=M.levels[id],menu=c.menu;return `<div class="lesson-note" data-lesson-note="${id}"><b>${c.chapter} · ${c.title}</b><span class="level-purpose">${menu.label}</span>${menu.connection?`<span class="lesson-connection">${menu.connection}</span>`:''}</div>`;}).join('');
  const connections=flow=>`<div class="level-dependencies" aria-label="${M.levelMenuCopy.connections}"><div class="level-dependency-sources">${flow.sources.map(source=>`<div><small>${source.label}</small><b>${source.text}</b></div>`).join('')}</div><svg viewBox="0 0 32 80" aria-hidden="true"><path d="M2 18 H14 V40 H28 M2 62 H14 V40 M23 35 L28 40 L23 45"/></svg><div class="level-dependency-target"><small>${flow.target.label}</small><b>${flow.target.text}</b></div></div>`;
  navigation.innerHTML=route.groups.map(group=>`<button type="button" data-level-group-target="${groupId(group)}" data-stage-color="${group.id}" ${group.id===menuGroup?'aria-current="step"':''}>${group.label}</button>`).join('');
  list.innerHTML=route.groups.map(group=>`<section class="level-group" id="${groupId(group)}" data-level-group="${group.id}" aria-labelledby="${groupId(group)}-title"><header class="level-group-heading"><div><h3 id="${groupId(group)}-title">${group.label}</h3><small>${group.ids.filter(id=>progress.completed(id)).length} / ${group.ids.length} ${M.levelMenuCopy.progress}</small></div></header><div class="level-group-cards">${group.ids.map(card).join('')}</div><details class="level-group-details"><summary>${M.levelMenuCopy.connections}</summary><p>${group.description}</p>${group.connections?connections(group.connections):''}${group.id==='decoder'?`<h4>${M.levelMenuCopy.decoderSteps}</h4>`:''}${lessonNotes(group.ids)}</details></section>`).join('');
+glossary.scan(document.body);
 }
 function positionLevelMenu(focus=true){
  const group=menuGroup?document.getElementById('level-group-'+menuTrack+'-'+menuGroup):null;
@@ -331,6 +336,7 @@ I18n.onChange(()=>{
  if(!busy)say('');
  if($('#level-menu').open){renderLevelMenu();positionLevelMenu(false);}
  if($('#level-complete').open)renderCompletion();
+ glossary.scan(document.body);
 });
 function restoreNavigation(){navigate(readNavigation(),{source:'history'});}
 window.addEventListener?.('popstate',restoreNavigation);
@@ -353,7 +359,7 @@ $('#level-stage-nav').onclick=e=>{const jump=e.target.closest('[data-level-group
 $('#level-list').onclick=e=>{const b=e.target.closest('[data-level]');if(b)switchLevel(b.dataset.level);};
 $('#level-tracks').onclick=e=>{const b=e.target.closest('[data-track]');if(b&&b.dataset.track!==menuTrack)navigate({...navigationState,trackId:b.dataset.track,groupId:null});};
 $('#next-level').onclick=()=>switchLevel(stage().next);
-function say(text,tone=''){$('#feedback').textContent=text;$('#feedback').className='feedback '+tone;}
+function say(text,tone=''){$('#feedback').textContent=text;$('#feedback').className='feedback '+tone;glossary.scan(document.body);}
 function checkpoint(){history.push(clone(state));if(history.length>40)history.shift();}
 function changed(){demoSamples=null;closeCompletion();resetReport();engineReport=null;fault=null;current=null;selectedWire=actionNode=lastFusionKind=null;results=[];sample=0;level=99;world?.clearConnectionError?.();world?.clearPreview?.();save();world?.rebuild();refresh();}
 function select(id){if(world?.focused())return;selected=id;selectedWire=null;actionNode=stage().buildable?id:null;world?.labels();renderShelf();}
@@ -405,6 +411,7 @@ function renderShelf(){
  }else palette.innerHTML=kinds.map(renderStock).join('');
  palette.scrollTop=scrollTop;
  world?.syncShelf?.();
+ glossary.scan(document.body);
 }
 function chooseModule(kind){if(busy||!stage().buildable||!shelfUnlocked(kind)||!M.canAdd(state,kind)||world?.focused())return;pending=selectedWire=actionNode=null;placing=kind;world?.clearConnectionError?.();world?.clearPreview?.();world?.labels();say(I18n.t("拖到台面松开；也可以点空位放下。"));}
 function placeModule(x,z){if(!placing||busy)return false;const next=clone(state);if(!M.addNode(next,placing,x,z)){const message=I18n.t("这里放不下，换一处空位。");say(message,'error');world?.showPlacementError?.(message,x,z);return false;}checkpoint();selected=next.nodes.at(-1).id;state=next;placing=null;world?.clearPlacement?.();changed();say(I18n.t("组件已放置。"));return true;}
@@ -438,7 +445,7 @@ function renderGeneration(){
  $('#demo-transcript').replaceChildren(...[...seed,...generated].map((id,i)=>{const el=document.createElement('span');el.className=i<seed.length?'seed-token':'generated-token';el.textContent=M.math.vocab[id];return el;}));
  $('#demo-transcript').setAttribute('aria-label',I18n.t('完整文字'));
 }
-function refresh(){renderGeneration();refreshPauseControl();$('#progress-reset').disabled=busy;$('#progress-reset-apply').disabled=busy;$('#progress-restart').disabled=busy;$('#progress-restart-undo').disabled=busy;$('#progress-restart-undo').hidden=!progress.canUndoRestart();document.body.classList.toggle('network-running',busy);renderShelf();const t=samples()[sample];const won=levelPassed();$('.route strong').textContent=stage().outputTitle+(won?I18n.t(" · 已通过"):'');$('#next-level').hidden=!(won||progress.completed(stageId))||!stage().next;$('#engine-controls').querySelectorAll('input,select,button').forEach(e=>e.disabled=busy);$('#device-docks').querySelectorAll('button').forEach(e=>e.disabled=busy);$('#sample-name').textContent=t.word;$('#sample-value').textContent=stage().generationRounds?I18n.t('目标输入 · 最近三个词'):stage().sequence?(stage().sourceDim===3?'Token ID '+vector(t.v):I18n.t(stage().sourceDim===12?"3 个位置 × 4 个特征":"3 个位置 × 2 个特征")):vector(t.v);$('#pass-count').textContent=results.filter(r=>r.pass).length+' / '+stage().sampleCount;$('#test-results').innerHTML=results.map((r,i)=>`<div class="test-row ${r.pass?'pass':'fail'}"><span>${r.pass?'✓':'×'} ${samples()[i].word}</span><span>${stage().tokenOutput&&r.actual?M.readTokens(r.actual):stage().sequence?(r.actual?I18n.t("矩阵 ")+shape(r.actual.length):I18n.t("等待输入")):(r.pass?vector(r.actual):comparisonValues(r.actual,r.expected).actual)}</span></div>`).join('');$('#run').disabled=!world;$('#run').innerHTML=busy?I18n.t("<span>■</span> 停止"):I18n.t("<span>▶</span> 试跑我的网络");$('#undo').disabled=busy||!history.length;$('#reset').disabled=busy;$('#reset').hidden=!!stage().demonstration;$('#undo').hidden=!!stage().demonstration;$('#restore-layout').hidden=!progress.canRestore(stageId,state);$('#restore-layout').disabled=busy;}
+function refresh(){renderGeneration();refreshPauseControl();$('#progress-reset').disabled=busy;$('#progress-reset-apply').disabled=busy;$('#progress-restart').disabled=busy;$('#progress-restart-undo').disabled=busy;$('#progress-restart-undo').hidden=!progress.canUndoRestart();document.body.classList.toggle('network-running',busy);renderShelf();const t=samples()[sample];const won=levelPassed();$('.route strong').textContent=stage().outputTitle+(won?I18n.t(" · 已通过"):'');$('#next-level').hidden=!(won||progress.completed(stageId))||!stage().next;$('#engine-controls').querySelectorAll('input,select,button').forEach(e=>e.disabled=busy);$('#device-docks').querySelectorAll('button').forEach(e=>e.disabled=busy);$('#sample-name').textContent=t.word;$('#sample-value').textContent=stage().generationRounds?I18n.t('目标输入 · 最近三个词'):stage().sequence?(stage().sourceDim===3?'Token ID '+vector(t.v):I18n.t(stage().sourceDim===12?"3 个位置 × 4 个特征":"3 个位置 × 2 个特征")):vector(t.v);$('#pass-count').textContent=results.filter(r=>r.pass).length+' / '+stage().sampleCount;$('#test-results').innerHTML=results.map((r,i)=>`<div class="test-row ${r.pass?'pass':'fail'}"><span>${r.pass?'✓':'×'} ${samples()[i].word}</span><span>${stage().tokenOutput&&r.actual?M.readTokens(r.actual):stage().sequence?(r.actual?I18n.t("矩阵 ")+shape(r.actual.length):I18n.t("等待输入")):(r.pass?vector(r.actual):comparisonValues(r.actual,r.expected).actual)}</span></div>`).join('');$('#run').disabled=!world;$('#run').innerHTML=busy?I18n.t("<span>■</span> 停止"):I18n.t("<span>▶</span> 试跑我的网络");$('#undo').disabled=busy||!history.length;$('#reset').disabled=busy;$('#reset').hidden=!!stage().demonstration;$('#undo').hidden=!!stage().demonstration;$('#restore-layout').hidden=!progress.canRestore(stageId,state);$('#restore-layout').disabled=busy;;glossary.scan(document.body);}
 function stopRun(){
  if(!busy&&!paused)return;
  busy=paused=false;runId++;world?.clearPackets();world?.labels();refresh();
@@ -847,6 +854,7 @@ try{
   $('.card-path>span').textContent=cardStage.title;
   $('#card-path').innerHTML=(cardStageId==='ffn'?[I18n.t("双路投影"),'SiLU',I18n.t("门控"),I18n.t("降维"),I18n.t("残差")]:cardStage.nodes.map(k=>M.definitions[k].name)).map((label,i)=>`${i?'<i>›</i>':''}<span class="${(cardStageId==='ffn'?i===c.stage:cardStage.nodes[i]===kind)?'active':''}">${label}</span>`).join('');
   host.setAttribute('aria-label',I18n.t("拖动旋转模块，滚轮缩放"));$('#card-portrait').append(host,overlay);if(!card.open)card.showModal();
+  glossary.scan(document.body);
  }
  function leaveFocus(){
   if(!focusId)return;
