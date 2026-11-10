@@ -60,6 +60,7 @@ The later puzzles add memory and execution-cost constraints to the numerical goa
 | Explore the scene | Drag empty space to rotate; scroll to zoom. During a run, dragging the workbench or a module rotates the view without moving the module. |
 | Pan the view | Every level has **Pan view** beside **Reset view**. Turn it on and drag, or hold Shift/right-drag. Panning also works during runs and pauses; it does not move modules. |
 | Get a hint | Click **Hint** beside the level selector to view the detailed architecture, this lesson’s focus and its output. Close with ×, Escape or the backdrop. |
+| Look up a term | Hover or focus a dashed-underlined term such as **FFN**, **RMSNorm** or **residual** to read a one-line definition in the current language. The popover closes when the pointer leaves, on **Escape**, or when the page scrolls. |
 | Inspect a module | Double-click it on the workbench or shelf to open its card. Shelf previews work even when stock is exhausted; Enter also opens a focused shelf item. |
 | Test your circuit | Click **Run my network** and watch the vectors move. |
 | Pause a run | Click **Pause** beside the run button. Rotate or zoom while frozen, then click **Resume** to continue from the same moment. |

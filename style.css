@@ -508,3 +508,16 @@ body.demo-fullscreen{overflow:hidden}
 .demo-level #game.demo-expanded #run-report{color:var(--ink)}
 
 .progress-setting{align-items:flex-start;gap:16px}.progress-setting .setting-label{flex:1;min-width:0}.progress-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;max-width:210px}.progress-actions button{font-size:12px;white-space:normal}#progress-restart{border-color:#819e90;background:#e5eee3;color:#31594c}#progress-restart-undo{font-size:12px;margin-top:10px}#progress-restart-undo[hidden]{display:none}
+
+/* Curated glossary terms: dashed underline plus a hover/focus popover. */
+.glossary-term{text-decoration-line:underline;text-decoration-style:dashed;text-decoration-color:var(--muted);text-underline-offset:.18em;text-decoration-thickness:1px;cursor:help;border-radius:2px}
+.glossary-term:hover,.glossary-term:focus-visible{text-decoration-color:var(--teal)}
+.glossary-term:focus-visible{outline:2px solid #deac66;outline-offset:2px}
+#glossary-popover{position:fixed;z-index:101;pointer-events:none;width:max-content;max-width:min(290px,calc(100vw - 24px));padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);font-size:13px;line-height:1.55;box-shadow:0 8px 24px #263a3d2e;animation:glossary-pop-show .08s ease-out both}
+#glossary-popover[hidden]{display:none}
+.glossary-popover-term{font-size:13px;font-weight:600}
+.glossary-popover-name{margin-left:6px;color:var(--muted);font-size:12px}
+.glossary-popover-definition{margin-top:4px;color:var(--ink)}
+.glossary-popover-hint{display:block;margin-top:6px;color:var(--muted);font-size:11px}
+@keyframes glossary-pop-show{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){#glossary-popover{animation-duration:0s}}
