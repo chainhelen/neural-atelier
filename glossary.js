@@ -81,35 +81,35 @@ export const glossaryEntries = {
   zh: 'attention head（注意力头）：注意力里独立算一遍的一路。多个头各读各的特征，最后把结果拼起来。',
   en: 'Attention head — one independent pass through the attention calculation; several heads read different features and are concatenated.',
   name: {zh: '注意力头', en: 'Attention head'},
-  alias: ['attention heads', '注意力头', '多头注意力', '单头注意力'],
+  alias: ['attention heads', 'multi-head attention', 'single-head attention', '注意力头', '多头注意力', '单头注意力'],
   seeAlso: 'head-a'
  },
  'residual': {
   zh: 'residual（残差）：把支路算出的修改量加回原来的输入，让原信息有一条不被改写的直路。',
   en: 'Residual — adds a branch’s update back to the input, so the original signal keeps a direct path.',
   name: {zh: '残差', en: 'Residual'},
-  alias: ['残差'],
+  alias: ['残差', 'residuals'],
   seeAlso: 'add'
  },
  'projection': {
   zh: 'projection（投影）：用一套权重把输入向量重新组合成另一个维度；换个角度看，就是换一组坐标来描述同一份信息。',
   en: 'Projection — reweights the input into another set of features, a new coordinate view of the same information.',
   name: {zh: '投影', en: 'Projection'},
-  alias: ['投影'],
+  alias: ['投影', 'projections', 'project', 'projects', 'projected', 'projecting'],
   seeAlso: 'project'
  },
  'activation': {
   zh: 'activation（激活）：跟在投影后面的非线性函数，让同样的输入不再总是得到同样的输出。',
   en: 'Activation — the non-linear step after a projection, so the layer is not a single linear change.',
   name: {zh: '激活', en: 'Activation'},
-  alias: ['激活'],
+  alias: ['激活', 'activations'],
   seeAlso: 'silu'
  },
  'logits': {
   zh: 'logits（词表分数）：模型给词表里每个候选词打的分，取最高分的词就是这一步的预测。',
   en: 'Logits — the score given to every candidate word; the highest one becomes the prediction.',
   name: {zh: '词表分数', en: 'Logits'},
-  alias: ['词表分数', '词表打分'],
+  alias: ['词表分数', '词表打分', 'vocabulary scoring', 'vocabulary scores'],
   seeAlso: 'lmhead'
  },
  'RoPE': {
@@ -144,7 +144,7 @@ export const glossaryEntries = {
   zh: '归一化：把一组数调整到统一的尺度，好让后面的计算不必被数值大小牵着走。',
   en: 'Normalization — rescales a group of numbers to a common scale so later steps are not driven by raw magnitude.',
   name: {zh: '归一化', en: 'Normalization'},
-  alias: ['normalization'],
+  alias: ['normalization', 'normalize', 'normalized', 'normalizes', 'normalizing', 'unnormalized'],
   seeAlso: 'layernorm2'
  }
 };
@@ -171,6 +171,13 @@ export const glossary=(()=>{
   return typeof name==='string'&&name?name:null;
  };
  const popover=()=>document.getElementById(POPOVER_ID);
+ // A modal dialog paints in the top layer, above every page element, so the
+ // popover moves into the open dialog to stay readable while it is shown.
+ const popoverHost=term=>{
+  const dialog=term?.closest?.('dialog');
+  return dialog&&dialog.open?dialog:document.body;
+ };
+ const placePopover=(box,host)=>{if(box.parentNode!==host)host.appendChild(box);};
 
  function findMatches(text){
   const found=[];
@@ -209,6 +216,7 @@ export const glossary=(()=>{
  }
  function skipElement(element){
   if(SKIP_TAGS.has(element.tagName))return true;
+  if(element.id===POPOVER_ID)return true;
   const className=element.getAttribute?.('class')||'';
   return typeof className==='string'&&SKIP_CLASS.test(className);
  }
@@ -260,6 +268,7 @@ export const glossary=(()=>{
  function hide(){
   const box=popover();
   if(box)box.hidden=true;
+  if(box)placePopover(box,document.body);
   activeTerm?.removeAttribute('aria-describedby');
   activeTerm=null;
  }
@@ -284,6 +293,7 @@ export const glossary=(()=>{
   box.textContent='';
   box.appendChild(fragment);
   box.hidden=false;
+  placePopover(box,popoverHost(term));
   term.setAttribute('aria-describedby',POPOVER_ID);
   activeTerm=term;
   position(box,term);

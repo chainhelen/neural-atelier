@@ -2362,7 +2362,12 @@ test('module card prose marks curated terms and keeps them explained in both lan
   term.dispatchEvent(new app.window.Event('focusin',{bubbles:true}));
   assert.equal(popover.hidden,false,'focus opens the glossary popover');
   assert.match(popover.textContent,/激活|Activation/);
-  if(language==='en')assert.doesNotMatch(card.textContent,/[\u3400-\u9fff]/);
+  // The popover deliberately shows the other language's name, so the prose check ignores it.
+  if(language==='en'){
+   const prose=card.cloneNode(true);
+   prose.querySelector('#glossary-popover')?.remove();
+   assert.doesNotMatch(prose.textContent,/[\u3400-\u9fff]/);
+  }
   doc.querySelector('#card-close').onclick();
  }
  assert.deepEqual([...app.c.I18n.missing],[]);
