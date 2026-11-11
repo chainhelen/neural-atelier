@@ -63,7 +63,7 @@ for(const id of Object.keys(M.levels).filter(id=>M.levels[id].engine))test(id+' 
  assert.ok(found,id+' has no player-accessible solution');
 });
 test('correct circuit can fail performance without changing generated result',()=>{const s=M.solutions('kv-cache');const x=M.samplesFor(s.levelId)[0].v,a=M.evaluate(s,x).output;assert.ok(close(a,M.reference(x,s.levelId),.06));assert.equal(M.engineReport(s).pass,false);s.settings.cache=true;assert.ok(close(a,M.evaluate(s,x).output));assert.equal(M.engineReport(s).pass,true);});
-test('ANE incompatible layout and unsupported ops fail compilation',()=>{const s=M.solutions('layout');assert.ok(M.engineReport(s).errors.some(e=>e.includes('布局')));s.settings.layout='channels';s.nodes.find(n=>n.id==='enattn').device='ane';assert.ok(M.engineReport(s).errors.some(e=>e.includes('支持集合')));});
+test('ANE incompatible layout and unsupported ops fail compilation',()=>{const s=M.solutions('layout');assert.ok(M.engineReport(s).errors.some(e=>e.includes('布局')));s.settings.layout='channels';s.nodes.find(n=>n.id==='enattn').device='ane';assert.ok(M.engineReport(s).errors.some(e=>e.includes('在本关不支持 ANE。请改用 CPU 或 GPU。')));});
 test('KV cache reuses three rows instead of six and preserves Attention output',()=>{const x=M.samplesFor('attention')[0].v,a=M.cachedAttention(x,true),b=M.cachedAttention(x,false);assert.equal(a.processed,3);assert.equal(b.processed,6);assert.ok(close(a.output,b.output));assert.ok(close(a.output,M.math.attention(x)));});
 test('more reserved KV capacity consumes memory even when prompt is unchanged',()=>{const s=M.solutions('quantization');s.settings.context=2048;const a=M.engineReport(s).metrics.memory;s.settings.context=8192;assert.ok(M.engineReport(s).metrics.memory>a);});
 
