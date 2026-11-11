@@ -65,6 +65,7 @@ The later puzzles add memory and execution-cost constraints to the numerical goa
 | Rotate or zoom | Drag empty space to rotate. Scroll to zoom. During a run or pause, dragging a module rotates the view without moving the module. |
 | Pan the view | Enable **Pan view** and drag, or hold Shift while dragging. Right-drag also pans. This works during runs and pauses. |
 | View a hint | Click **View hint** in the top bar to see the level's structure, focus and output. Close with ×, Escape or the backdrop. |
+| Look up a term | Hover or focus a dashed-underlined term such as **FFN**, **RMSNorm** or **residual** to read a one-line definition in the current language. The popover closes when the pointer leaves, on **Escape**, or when the page scrolls. |
 | Inspect a module | Double-click it on the workbench or shelf. On the shelf, you can also focus an item and press Enter. Details remain available when all copies have been placed. |
 | Run the circuit | Click **Run**. The game checks the final output for every input case. If a case fails, read the run report and compare the actual and target values. |
 | Pause or resume | Click **Pause**, then **Resume** to continue from the same moment. You can rotate, pan and zoom while paused. |
