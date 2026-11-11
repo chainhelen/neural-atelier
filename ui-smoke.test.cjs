@@ -15,6 +15,64 @@ function boot(storage=new Map(),hash='',languages=['zh-CN']){
  vm.runInContext(code+`\nworld={relocalize(){},labels(){},rebuild(){},beforeStage(){},setStage(){},clearPackets(){},focused(){return null},async animate(){}};refresh();`,c);
  return {c,document,window,storage,location,navigation,hashchange,popstate,eval:code=>vm.runInContext(code,c)};
 }
+test('product action names describe the existing behavior in both languages',async()=>{
+ const app=boot(new Map(),'#wire'),doc=app.document;
+ for(const [language,runLabel,returnLabel]of [['zh','运行','返回工作台'],['en','Run','Return to workbench']]){
+  app.c.I18n.setPreference(language);
+  assert.equal(doc.querySelector('#run').textContent.trim(),'▶ '+runLabel);
+  assert.equal(doc.querySelector('#complete-replay').textContent,returnLabel);
+  app.eval("state=M.solutions('wire');save();refresh()");await app.eval('run()');
+  const circuit=app.eval('state'),before=app.eval('JSON.stringify(state)');
+  assert.equal(doc.querySelector('#level-complete').open,true);
+  doc.querySelector('#complete-replay').onclick();
+  assert.equal(app.eval('state'),circuit);assert.equal(app.eval('JSON.stringify(state)'),before);
+  assert.equal(app.eval('results.length'),0);assert.equal(doc.querySelector('#run-report').hidden,true);
+  assert.equal(doc.querySelector('#level-complete').open,false);
+ }
+});
+test('failed runs show their specific error as text and translate it on language change',async()=>{
+ const app=boot(new Map(),'#wire'),doc=app.document;
+ await app.eval('run()');
+ const error=app.eval('current.error');assert.ok(error);
+ assert.equal(doc.querySelector('#run-report .run-error').textContent,error);
+ assert.equal(doc.querySelector('#run-report').hidden,false);
+ app.c.I18n.setPreference('en');
+ assert.notEqual(app.eval('current.error'),error);
+ assert.equal(doc.querySelector('#run-report .run-error').textContent,app.eval('current.error'));
+ assert.doesNotMatch(doc.querySelector('#run-report').textContent,/[㐀-鿿]/);
+ app.eval("current.error='<img src=x onerror=alert(1)>';renderReport()");
+ assert.equal(doc.querySelector('#run-report .run-error').textContent,'<img src=x onerror=alert(1)>');
+ assert.equal(doc.querySelector('#run-report img'),null);
+});
+test('shelf copy explains an exhausted stock without disabling module information',()=>{
+ const app=boot(new Map(),'#workshop'),doc=app.document;
+ app.eval("M.addNode(state,'relu-ffn',0,0);refresh()");
+ for(const [language,reason,open]of [['zh','此模块已全部放置。','双击或按 Enter 查看说明。'],['en','All copies of this module are on the workbench.','Double-click or press Enter to view details.']]){
+  app.c.I18n.setPreference(language);
+  const stock=doc.querySelector('[data-add-module="relu-ffn"]');
+  assert.equal(stock.dataset.addDisabled,'true');assert.equal(stock.getAttribute('aria-disabled'),'false');
+  assert.equal(stock.getAttribute('tabindex'),'0');assert.ok(stock.dataset.tooltip.includes(reason));
+  assert.ok(stock.getAttribute('aria-label').includes(reason));assert.ok(stock.dataset.tooltip.includes(open));
+ }
+});
+test('learning copy pairs an approachable goal with technical explanations before and after completion',async()=>{
+ const app=boot(new Map(),'#activation'),doc=app.document;
+ for(const [language,title,goal,term]of [['zh','让数值有弯曲','改变数值，保留四个特征','逐项非线性激活'],['en','Bend the numbers','Change the values, keep four features','elementwise nonlinear activation']]){
+  app.c.I18n.setPreference(language);
+  assert.equal(doc.querySelector('.chapter strong').textContent,title);
+  assert.equal(doc.querySelector('.mission h2').textContent,goal);
+  assert.doesNotMatch(doc.querySelector('.mission h2').textContent,/投影结果经|four-dimensional vector/);
+  const explanation=doc.querySelector('#mission-reason').textContent;
+  assert.ok(explanation.includes(term));assert.match(explanation,/SiLU/);
+  assert.equal(doc.querySelector('#mission-reason').hidden,false,'technical explanations are available before completion');
+  app.eval("state=M.solutions('activation');save();refresh()");const circuit=app.eval('JSON.stringify(state)');
+  await app.eval('run()');assert.equal(doc.querySelector('#level-complete').open,true);
+  doc.querySelector('#complete-replay').onclick();
+  assert.equal(doc.querySelector('#mission-reason').textContent,explanation,'the same explanation can be revisited after learning');
+  assert.equal(app.eval('JSON.stringify(state)'),circuit);
+ }
+ assert.deepEqual([...app.c.I18n.missing],[]);
+});
 test('failure comparisons reveal rounded-away differences without changing numbers or tolerance',()=>{
  const app=boot();
  const compare=(a,b,tolerance=1e-9)=>JSON.parse(app.eval(`JSON.stringify(comparisonValues(${JSON.stringify(a)},${JSON.stringify(b)},${tolerance}))`));
@@ -134,7 +192,7 @@ test('score input and output describe X, projected Q/K and pairwise scores in bo
   const app=boot(new Map(),'#scores',[language]),M=app.c.NeuralPrologue,doc=app.document,before=app.eval('JSON.stringify(state)');
   assert.equal(M.levels.scores.outputPairAxes,true);assert.match(M.levels.scores.outputTitle,language==='zh-CN'?/匹配分数矩阵 S/:/Matching-score matrix S/);
   assert.match(doc.querySelector('.route').textContent,language==='zh-CN'?/输入向量矩阵 X/:/Input vector matrix X/);
-  assert.match(doc.querySelector('.mission').textContent,/Q = XWq/);assert.match(doc.querySelector('.mission').textContent,/K = XWk/);assert.match(doc.querySelector('.mission').textContent,/S = QKᵀ \/ √2/);
+  assert.match(doc.querySelector('#mission-reason').textContent,/Q = XWq/);assert.match(doc.querySelector('#mission-reason').textContent,/K = XWk/);assert.match(doc.querySelector('#mission-reason').textContent,/S = QKᵀ \/ √2/);
   const x=M.samplesFor('scores')[0].v,q=M.operations.q([x]),k=M.operations.k([x]);assert.deepEqual(Array.from(q.slice(0,2)),[1,.25]);assert.deepEqual(Array.from(k.slice(2,4)),[.2,1]);assert.equal(+M.reference(x,'scores')[1].toFixed(2),.32);
   assert.deepEqual(Array.from(x),Array.from(M.samplesFor('qkv')[0].v));assert.notDeepEqual(Array.from(x),Array.from(M.reference(x,'qkv')));
   doc.querySelector('#hint').onclick();assert.match(doc.querySelector('#structure-dialog').textContent,/Wq/);assert.match(doc.querySelector('#structure-dialog').textContent,/Softmax/);
@@ -189,11 +247,11 @@ test('saved borrowed LayerNorm circuits retain their wiring but report a role er
   app.c.observeRun=()=>{played++;assert.equal(app.eval('fault'),null);assert.equal(doc.querySelector('#run-report').hidden,true);};app.eval('world.animate=window.observeRun');
   await app.eval('run()');assert.equal(played,1);assert.equal(app.eval('levelPassed()'),false);assert.ok(!doc.querySelector('#level-complete').open);
   assert.equal(app.eval('current.componentIssue.id'),'ln-ffn-2');assert.equal(app.eval('JSON.stringify(state)'),before);assert.equal(app.eval("progress.completed('decoder-self')"),true);
-  assert.match(doc.querySelector('#run-report').textContent,language==='en-US'?/Module role mismatch.*FFN/s:/组件用途不匹配.*FFN/s);
+  assert.match(doc.querySelector('#run-report').textContent,language==='en-US'?/Module role mismatch.*FFN/s:/模块用途不匹配.*FFN/s);
   assert.doesNotMatch(doc.querySelector('#run-report').textContent,/数值不匹配|Values do not match/);
   if(language==='en-US')assert.doesNotMatch(doc.querySelector('#run-report').textContent,/[\u3400-\u9fff]/);
   app.c.I18n.setPreference(language==='en-US'?'zh':'en');
-  assert.match(doc.querySelector('#run-report').textContent,language==='en-US'?/组件用途不匹配/:/Module role mismatch/);
+  assert.match(doc.querySelector('#run-report').textContent,language==='en-US'?/模块用途不匹配/:/Module role mismatch/);
   assert.deepEqual([...app.c.I18n.missing],[]);
  }
 });
@@ -270,9 +328,9 @@ test('learning stages preserve level navigation and keep the other tracks separa
  for(const [id,group]of [['multihead','attention'],['wider-features','encoder'],['encoder-layer','encoder'],['causal','decoder'],['cross-attention','decoder']])assert.equal(doc.querySelector(`#level-list [data-level="${id}"]`).closest('[data-level-group]').dataset.levelGroup,group);
  assert.equal(doc.querySelector('[data-lesson-note="wider-features"] .level-purpose').textContent,'Prepare input');
  assert.deepEqual([...doc.querySelectorAll('[data-level-group="decoder"] .lesson-note')].map(e=>e.dataset.lessonNote),['causal','masked-multihead','decoder-self','cross-attention','decoder-layer']);
- assert.match(doc.querySelector('[data-lesson-note="decoder-self"] .lesson-connection').textContent,/D.*15/);
- assert.match(doc.querySelector('[data-lesson-note="cross-attention"] .lesson-connection').textContent,/14.*12.*16/);
- assert.match(doc.querySelector('[data-lesson-note="decoder-layer"] .lesson-connection').textContent,/FFN.*inside the decoder/);
+ assert.equal(doc.querySelector('[data-lesson-note="decoder-self"] .lesson-connection').textContent,'Output D → query input for cross-attention');
+ assert.equal(doc.querySelector('[data-lesson-note="cross-attention"] .lesson-connection').textContent,'Target context D + encoder output E → cross-attention update; the decoder layer adds the update to the target features');
+ assert.equal(doc.querySelector('[data-lesson-note="decoder-layer"] .lesson-connection').textContent,'Causal self-attention → cross-attention → FFN: three sublayers form the decoder layer');
  assert.equal(doc.querySelectorAll('.level-dependencies').length,2);assert.doesNotMatch(doc.querySelector('#level-menu').textContent,/[\u3400-\u9fff]/);
  const before=app.eval('JSON.stringify(state)'),hash=app.location.hash;let scrolled=false;
  doc.querySelector('#level-group-main-decoder').scrollIntoView=()=>{scrolled=true;};
@@ -575,7 +633,7 @@ test('browser language is recommended on first visit and a saved choice override
 test('language changes preserve the current circuit, results, level hash and speed',async()=>{
  const app=boot();app.eval("switchLevel('projection');state=M.solutions(stageId);state.nodes[0].x=1.75;setPlaybackSpeed(2)");await app.eval('run()');
  const before=app.eval('JSON.stringify(state)'),results=app.eval('JSON.stringify(results)'),hash=app.location.hash;
- app.c.I18n.setPreference('en');assert.equal(app.document.querySelector('#settings-title').textContent,'Game settings');assert.match(app.document.querySelector('#run').textContent,/Run my network/);assert.equal(app.eval('JSON.stringify(state)'),before);assert.equal(app.eval('JSON.stringify(results)'),results);assert.equal(app.location.hash,hash);assert.equal(app.eval('playbackSpeed'),2);assert.equal(app.eval('M.samples[1].word'),'love');assert.equal(app.eval("M.readTokens([0,1,2])"),'I love cats');
+ app.c.I18n.setPreference('en');assert.equal(app.document.querySelector('#settings-title').textContent,'Game settings');assert.equal(app.document.querySelector('#run').textContent,'▶ Run');assert.equal(app.eval('JSON.stringify(state)'),before);assert.equal(app.eval('JSON.stringify(results)'),results);assert.equal(app.location.hash,hash);assert.equal(app.eval('playbackSpeed'),2);assert.equal(app.eval('M.samples[1].word'),'love');assert.equal(app.eval("M.readTokens([0,1,2])"),'I love cats');
  app.c.I18n.setPreference('zh');assert.equal(app.document.querySelector('#settings-title').textContent,'游戏设置');assert.equal(app.eval('JSON.stringify(state)'),before);assert.equal(app.eval('M.samples[1].word'),'爱');
 });
 test('English covers every level, module card and generated report',async()=>{
@@ -636,7 +694,10 @@ test('pause is bilingual and a hash change cancels it without carrying pause int
  const app=boot();app.c.performance={now:()=>100};
  const control=app.document.querySelector('#pause');assert.equal(control.disabled,true);assert.equal(control.parentElement.className,'run-toolbar');
  app.eval('busy=true;refresh();togglePause()');assert.equal(control.getAttribute('aria-pressed'),'true');assert.equal(control.textContent,'▶ 继续');
- app.c.I18n.setPreference('en');assert.equal(control.textContent,'▶ Resume');
+ assert.equal(app.document.querySelector('#feedback').textContent,'已暂停：我');
+ app.c.I18n.setPreference('en');assert.equal(control.textContent,'▶ Resume');assert.equal(app.document.querySelector('#feedback').textContent,'Paused: I');
+ app.eval('togglePause()');assert.equal(app.document.querySelector('#feedback').textContent,'Running: I');assert.equal(app.eval('paused'),false);
+ app.eval('togglePause()');
  app.location.hash='#projection';app.hashchange();assert.equal(app.eval('busy||paused'),false);assert.equal(control.disabled,true);assert.equal(control.textContent,'Ⅱ Pause');
  app.eval('state=M.solutions(stageId)');await app.eval('run()');assert.equal(app.eval('paused'),false);assert.equal(app.document.querySelectorAll('#test-results .pass').length,3);
 });
@@ -690,7 +751,7 @@ test('SwiGLU objective connects familiar modules to the FFN while keeping residu
  const app=boot(new Map(),'#ffn'),doc=app.document,saved=app.eval('JSON.stringify(state)');
  for(const language of ['zh','en']){
   app.c.I18n.setPreference(language);
-  const primer=doc.querySelector('.swiglu-primer');assert.ok(primer);assert.match(primer.textContent,/SwiGLU/);assert.match(primer.textContent,language==='zh'?/归一化输入和残差/:/normalized input and residual/);assert.match(primer.textContent,/SiLU/);
+  const primer=doc.querySelector('.swiglu-primer');assert.ok(primer);assert.match(primer.textContent,/SwiGLU/);assert.match(primer.textContent,language==='zh'?/归一化输入 Z.*FFN 输出与原始输入 R 相加/:/normalized input Z.*FFN output to the original input R/);assert.match(primer.textContent,/SiLU/);
   assert.equal(primer.querySelectorAll('.swiglu-branches>div').length,2);assert.equal(primer.querySelectorAll('.swiglu-merge b').length,2);
   assert.match(doc.querySelector('#mission-reason-takeaway').textContent,language==='zh'?/FFN 外/:/outside the FFN/);
   assert.match(doc.querySelector('#mission-reason-scope').textContent,/Swish/);
@@ -812,7 +873,7 @@ test('readout lesson order, completion navigation and bilingual copy agree on on
   app.c.I18n.setPreference(language);app.eval('levelMenu()');
   assert.deepEqual([...doc.querySelectorAll('[data-level-group="generation"] [data-level]')].map(el=>el.dataset.level),['vocabulary-scores','encoder-decoder','vocabulary','autoregressive','transformer-demo']);
   for(const [id,number]of [['vocabulary-scores',17],['encoder-decoder',18],['vocabulary',19]]){
-   app.eval(`switchLevel('${id}')`);assert.equal(doc.querySelector('.route strong').textContent,app.eval('stage().outputTitle'));assert.match(doc.querySelector('.chapter strong').textContent,id==='vocabulary-scores'?/打分|score/i:id==='encoder-decoder'?/两半|halves/i:/选|Select/i);
+   app.eval(`switchLevel('${id}')`);assert.equal(doc.querySelector('.route strong').textContent,app.eval('stage().outputTitle'));assert.equal(doc.querySelector('.chapter strong').textContent,({'vocabulary-scores':['先给候选词打分','First, score the candidate tokens'],'encoder-decoder':['把原版两半接起来','Connect both halves of the original'],vocabulary:['从分数中选出词','Select tokens from scores']})[id][language==='en'?1:0]);
    assert.equal(app.eval('stage().chapter'),(language==='zh'?'原版基础 / ':'Original / ')+number);
    if(id!=='encoder-decoder')assert.match(doc.querySelector('#sample-value').textContent,/4/);
    if(language==='en')assert.doesNotMatch(doc.querySelector('.mission').textContent,/[\u3400-\u9fff]/);
@@ -1123,7 +1184,7 @@ test('every learning shelf groups packages without losing old parts or saved cir
 test('cloud track sits before edge inference and preserves independent saves, language and completion',async()=>{
  const app=boot(new Map(),'#tp-columns'),doc=app.document;
  app.eval('levelMenu()');assert.deepEqual([...doc.querySelectorAll('[data-track]')].map(el=>el.dataset.track),['main','modern','cloud','engine']);
- assert.equal(doc.querySelectorAll('#level-list [data-level]').length,6);assert.deepEqual([...doc.querySelectorAll('[data-level-group]')].map(el=>el.dataset.levelGroup),['single','tensor-parallel']);assert.match(doc.querySelector('.level-menu-intro').textContent,/CPU 回退与显存驻留/);assert.match(doc.querySelector('.level-menu-intro').textContent,/两张 GPU/);assert.doesNotMatch(doc.querySelector('.level-menu-intro').textContent,/CUDA Graph|尚未开放/);
+ assert.equal(doc.querySelectorAll('#level-list [data-level]').length,6);assert.deepEqual([...doc.querySelectorAll('[data-level-group]')].map(el=>el.dataset.levelGroup),['single','tensor-parallel']);assert.equal(doc.querySelector('.level-menu-intro').textContent,'先让一张 GPU 算起来，看看数据为什么要来回搬运；再试着让两张 GPU 分工，算出同样的结果。');assert.match(doc.querySelector('.level-menu-intro').textContent,/两张 GPU/);assert.doesNotMatch(doc.querySelector('.level-menu-intro').textContent,/CUDA Graph|尚未开放/);
  app.eval('state=M.solutions(stageId);save()');await app.eval('run()');assert.equal(app.eval('levelPassed()'),true);const before=app.eval('JSON.stringify(state)');
  const reopened=boot(app.storage,'#tp-columns');assert.equal(reopened.eval('JSON.stringify(state)'),before);assert.equal(reopened.eval('progress.completed(stageId)'),true);
  app.c.I18n.setPreference('en');app.eval('levelMenu()');assert.doesNotMatch(doc.querySelector('#level-menu').textContent,/[\u3400-\u9fff]/);
@@ -1135,7 +1196,7 @@ test('single GPU report explains transfers and rejects correct numbers with exce
  const app=boot(new Map(),'#single-upload'),doc=app.document;
  app.eval('state=M.solutions(stageId)');await app.eval('run()');assert.match(doc.querySelector('.cloud-copy-report').textContent,/24 B/);
  doc.querySelector('#complete-next').onclick();assert.equal(app.eval('stageId'),'single-fallback');app.eval('state=M.solutions(stageId)');await app.eval('run()');assert.match(doc.querySelector('.cloud-copy-report').textContent,/48 B/);
- doc.querySelector('#complete-next').onclick();assert.equal(app.eval('stageId'),'single-resident');app.eval("state=M.solutions('single-fallback');state.levelId='single-resident'");await app.eval('run()');assert.equal(app.eval('levelPassed()'),false);assert.match(doc.querySelector('.cloud-copy-report').textContent,/48 \/ 16 B/);
+ doc.querySelector('#complete-next').onclick();assert.equal(app.eval('stageId'),'single-resident');app.eval("state=M.solutions('single-fallback');state.levelId='single-resident'");await app.eval('run()');assert.equal(app.eval('levelPassed()'),false);assert.equal(doc.querySelector('.cloud-copy-report strong').textContent,'48 B · 上限 16 B');
  app.c.I18n.setPreference('en');assert.doesNotMatch(doc.querySelector('.cloud-copy-report').textContent,/[\u3400-\u9fff]/);
  app.eval('state=M.solutions(stageId)');await app.eval('run()');assert.equal(app.eval('levelPassed()'),true);assert.match(doc.querySelector('.cloud-copy-report').textContent,/16 B/);
  doc.querySelector('#complete-next').onclick();assert.equal(app.eval('stageId'),'tp-columns');
@@ -1267,7 +1328,7 @@ test('generation map names the actual modules, distinguishes predictions from co
   app.document.querySelector('#structure-close').onclick();
  }
  assert.match(M.extraCard('feedback','autoregressive').meaning,/remembers.*original context/i);
- assert.match(M.extraCard('step','autoregressive').purpose,/replaces that scoring stage/);
+ assert.match(M.extraCard('step','autoregressive').purpose,/replaces scoring with a fixed table/);
  assert.deepEqual(Array.from(M.definitions.feedback.glyphs),['…','→','+1']);
 });
 
@@ -1354,7 +1415,7 @@ test('the hint button opens the full optional reference and closes without chang
  const app=boot(new Map(),'#layernorm'),doc=app.document,button=doc.querySelector('#hint'),dialog=doc.querySelector('#structure-dialog');
  assert.equal(button.closest('.topbar'),doc.querySelector('.topbar'));assert.equal(button.getAttribute('aria-haspopup'),'dialog');assert.equal(button.getAttribute('aria-controls'),dialog.id);
  assert.equal(doc.querySelector('#structure-map'),null);assert.equal(doc.querySelector('#hint-panel'),null);
- assert.match(doc.querySelector('.mission>p').textContent,/不承接前一关/);assert.match(doc.querySelector('.route').textContent,/练习向量/);
+ assert.match(doc.querySelector('.mission>p').textContent,/不是前一关的计算结果/);assert.match(doc.querySelector('.route').textContent,/练习向量/);
  const board=app.eval('JSON.stringify(state)');button.onclick();
  assert.equal(dialog.open,true);assert.equal(doc.querySelector('#structure-title').textContent,'本关提示');assert.ok(doc.querySelector('.architecture-detail'));assert.equal(doc.querySelector('#feedback').textContent,'');assert.equal(app.eval('JSON.stringify(state)'),board);
  const cancel=new app.window.Event('cancel',{cancelable:true});dialog.dispatchEvent(cancel);assert.equal(dialog.open,false);
@@ -1390,7 +1451,7 @@ test('combined shelf help shows its original chapter with stock guidance and cle
  assert.equal(M.packageOrigin('q'),null);
  const hover=button=>button.dispatchEvent(new app.window.Event('pointerover',{bubbles:true}));
  let button=doc.querySelector('[data-add-module="original-weights"]');assert.ok(button);assert.equal(button.hasAttribute('title'),false);
- hover(button);assert.equal(tip.hidden,false);assert.equal(tip.textContent,'来源：原版基础 / 07\n可用数量 0 / 0 · 双击查看说明');assert.equal(button.getAttribute('aria-describedby'),'shelf-tooltip');assert.doesNotMatch(tip.textContent,/3 ×|Softmax/);
+ hover(button);assert.equal(tip.hidden,false);assert.equal(tip.textContent,'来源：原版基础 / 07\n可用数量：0 / 0。 本关不提供此模块。 双击或按 Enter 查看说明。');assert.equal(button.getAttribute('aria-describedby'),'shelf-tooltip');assert.doesNotMatch(tip.textContent,/3 ×|Softmax/);
  assert.ok(!tip.textContent.includes(M.levels.softmax.title));assert.match(button.getAttribute('aria-label'),/来源：原版基础 \/ 07/);
  assert.match(button.getAttribute('aria-label'),/Softmax/);assert.equal(app.eval('JSON.stringify(state)'),saved);
  button.dispatchEvent(new app.window.Event('pointerout',{bubbles:true}));assert.equal(tip.hidden,true);
@@ -1398,7 +1459,7 @@ test('combined shelf help shows its original chapter with stock guidance and cle
  doc.dispatchEvent(new app.window.Event('pointerdown',{bubbles:true}));assert.equal(tip.hidden,true);
  hover(button);doc.querySelector('#module-palette').dispatchEvent(new app.window.Event('scroll',{bubbles:true}));assert.equal(tip.hidden,true);
  hover(button);app.c.I18n.setPreference('en');assert.equal(tip.hidden,true);
- button=doc.querySelector('[data-add-module="original-weights"]');hover(button);assert.equal(tip.textContent,'From: Original / 07\nCopies available 0 / 0 · Double-click to inspect');
+ button=doc.querySelector('[data-add-module="original-weights"]');hover(button);assert.equal(tip.textContent,'From: Original / 07\nAvailable: 0 / 0. This module is not provided in this level. Double-click or press Enter to view details.');
  button=doc.querySelector('[data-add-module="q"]');hover(button);assert.match(tip.textContent,/2 \/ 2/);assert.doesNotMatch(tip.textContent,/[\u3400-\u9fff]|3 ×|From:/);
  app.eval("switchLevel('masked-multihead')");assert.equal(tip.hidden,true);assert.equal(doc.querySelector('[aria-describedby="shelf-tooltip"]'),null);
 });
