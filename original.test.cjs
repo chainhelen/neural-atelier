@@ -321,7 +321,7 @@ test('equal numbers cannot pass with another sublayer’s named residual or Laye
   const s=borrowKinds(M.solutions(level),replacements),before=JSON.stringify(s);
   for(const {v}of M.samplesFor(level)){
    const ev=M.evaluate(s,v);assert.ok(close(ev.output,M.reference(v,level)),'the toy arithmetic is still equal');
-   assert.match(ev.error,/组件用途不匹配/);assert.ok(ev.componentIssue);assert.equal(ev.bad.id,ev.componentIssue.id);
+   assert.match(ev.error,/模块用途不匹配/);assert.ok(ev.componentIssue);assert.equal(ev.bad.id,ev.componentIssue.id);
   }
   assert.equal(JSON.stringify(s),before,'validation preserves the circuit');
  }
@@ -338,11 +338,11 @@ test('role checks support either residual input order and building a network fro
 test('role errors reject the new edge without mutation, including upstream-last bypasses',()=>{
  const s=M.solutions('decoder-layer'),before=JSON.stringify(s);
  for(const [from,to,port]of [['encoder-add','ln-ffn',0],['masked-heads','ln-ffn',0],['masked-heads','cross-add',1]]){
-  assert.match(M.connect(s,from,to,port),/组件用途不匹配/);assert.equal(JSON.stringify(s),before);
+  assert.match(M.connect(s,from,to,port),/模块用途不匹配/);assert.equal(JSON.stringify(s),before);
  }
  const wrong=borrowKinds(M.solutions('decoder-layer'),{'encoder-add':'ffn-add','ln-attn':'ln-ffn'});
  wrong.nodes.find(n=>n.kind==='masked-heads').links=[null];const partial=JSON.stringify(wrong);
- assert.match(M.connect(wrong,'R','masked-heads',0),/组件用途不匹配/);assert.equal(JSON.stringify(wrong),partial);
+ assert.match(M.connect(wrong,'R','masked-heads',0),/模块用途不匹配/);assert.equal(JSON.stringify(wrong),partial);
  const optional=M.solutions('decoder-layer');optional.nodes.push({id:'ln-ffn-2',kind:'ln-ffn',x:0,z:0,links:['masked-heads']});
  assert.equal(M.evaluate(optional,M.samplesFor('decoder-layer')[0].v).error,null,'unused shelf experiments do not become hidden output goals');
  const generic=M.solutions('layernorm');assert.equal(M.connect(generic,'R','layernorm2',0),null,'the introductory LayerNorm stays generic');

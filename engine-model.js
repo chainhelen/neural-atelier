@@ -4,13 +4,13 @@ M.engineDefaults={batch:16,layout:'channels',precision:8,cache:true,fusion:true,
 M.engineControls={
  layout:{label:I18n.t("张量布局"),values:[['sequence',I18n.t("序列优先 B/S/C")],['channels',I18n.t("通道优先 B/C/1/S")]]},
  batch:{label:I18n.t("Prefill 每批位置数"),values:[1,4,8,16,32,64,128].map(n=>[n,String(n)])},
- cache:{label:I18n.t("历史 K/V"),values:[[false,I18n.t("每步重算")],[true,I18n.t("保留并追加")]]},
+ cache:{label:I18n.t("历史 K/V 缓存"),values:[[false,I18n.t("每步重算历史 K/V")],[true,I18n.t("保留历史 K/V，追加新位置")]]},
  precision:{label:I18n.t("权重精度"),values:[[16,'16 bit'],[8,'8 bit'],[4,'4 bit'],[2,'2 bit']]},
- fusion:{label:I18n.t("激活与门控"),values:[[false,I18n.t("分别写回内存")],[true,I18n.t("融合执行")]]},
- resident:{label:I18n.t("权重驻留"),values:[[false,I18n.t("重复从存储读入")],[true,I18n.t("保留在统一内存")]]},
- split:{label:I18n.t("Prefill 投影 / FFN 的 ANE 分担"),values:[0,20,40,60,80,100].map(n=>[n,n+'%'])},
- prefix:{label:I18n.t("第二轮相同前缀"),values:[[false,I18n.t("重新计算")],[true,I18n.t("复用匹配状态")]]},
- context:{label:I18n.t("KV 容量（位置数）"),values:[512,1024,2048,4096,8192].map(n=>[n,String(n)])}
+ fusion:{label:I18n.t("激活与门控"),values:[[false,I18n.t("分别执行并写回内存")],[true,I18n.t("融合执行")]]},
+ resident:{label:I18n.t("权重驻留"),values:[[false,I18n.t("重复从存储加载")],[true,I18n.t("保留在统一内存")]]},
+ split:{label:I18n.t("Prefill 投影 / FFN 的 ANE 分担比例"),values:[0,20,40,60,80,100].map(n=>[n,n+'%'])},
+ prefix:{label:I18n.t("第二轮的相同前缀"),values:[[false,I18n.t("重新计算前缀")],[true,I18n.t("复用匹配的前缀 K/V（需启用缓存）")]]},
+ context:{label:I18n.t("K/V 缓存容量（位置数）"),values:[512,1024,2048,4096,8192].map(n=>[n,String(n)])}
 };
 const quant=(w,bits)=>{if(bits===16)return w;const q=2**(bits-1)-1,max=Math.max(...w.flat().map(Math.abs)),scale=max/q;return w.map(r=>r.map(v=>Math.round(v/scale)*scale));};
 function engineCompute(x,bits){
@@ -31,8 +31,8 @@ function report(state,level,work={prompt:128,context:2048}){
  let cursor=0,transfer=0,aneWork=0,computeWork=0,last='cpu';
  for(const n of state.nodes){
   const device=n.device||'gpu';
-  if(device==='ane'&&!heavy.has(n.id))errors.push(M.definitions[n.id].name+I18n.t(" 不在本关 ANE 支持集合内"));
-  if((device==='ane'||heavy.has(n.id)&&share>0)&&s.layout!=='channels')errors.push(I18n.t("ANE 接收的张量布局不兼容"));
+  if(device==='ane'&&!heavy.has(n.id))errors.push(M.definitions[n.id].name+I18n.t(" 在本关不支持 ANE。请改用 CPU 或 GPU。"));
+  if((device==='ane'||heavy.has(n.id)&&share>0)&&s.layout!=='channels')errors.push(I18n.t("ANE 的张量布局不兼容。请选择通道优先 B/C/1/S，或将任务移出 ANE 并把分担比例设为 0%。"));
   const base=taskBase[n.id]*(n.id==='load'?1:scale),cpuFactor=n.id==='load'||n.id==='enembed'||n.id==='enhead'?1:8;
   let duration=base*(device==='cpu'?cpuFactor:device==='ane'?.68:1),effective=device;
   if(heavy.has(n.id)&&device==='gpu'&&share>0){duration=Math.max(base*(1-share),base*share*.68)+2;aneWork+=base*share;effective='gpu+ane';}
@@ -57,7 +57,7 @@ function report(state,level,work={prompt:128,context:2048}){
  const accuracy=M.samplesFor(level.id).map(t=>{const actual=engineCompute(t.v,s.precision),expected=engineCompute(t.v,16);return Math.max(...actual.map((x,i)=>Math.abs(x-expected[i])));});
  const error=Math.max(...accuracy);
  const metrics={ttft,total,tps:1000/decodeMs,decode:decodeMs,second,memory,scratch,transfer,aneMin:100*aneWork/computeWork,error};
- if(s.context<context)errors.push(I18n.t("KV 容量不足：当前 ")+s.context+I18n.t("，负载需要 ")+context+I18n.t(" 个位置"));
+ if(s.context<context)errors.push(I18n.t("K/V 缓存容量不足：已设置 ")+s.context+I18n.t(" 个位置，负载需要 ")+context+I18n.t(" 个位置。请增加 K/V 缓存容量。"));
  const limits=level.limits||{},checks=Object.entries(limits).map(([key,target])=>({key,target,value:metrics[key],pass:key==='tps'||key==='aneMin'?metrics[key]>=target:metrics[key]<=target}));
  return {metrics,timeline,errors:[...new Set(errors)],checks,pass:!errors.length&&checks.every(c=>c.pass),work};
 }
@@ -65,6 +65,6 @@ M.engineReport=(state,level=M.levels[state.levelId])=>{
  const reports=(level.workloads||[{prompt:128,context:2048}]).map(w=>report(state,level,w));
  return {cacheTrace:M.cachedAttention(M.math.normalize(M.samplesFor(level.id)[0].v),state.settings.cache),runs:reports,pass:reports.every(r=>r.pass),metrics:reports[0].metrics,timeline:reports[0].timeline,errors:reports.flatMap(r=>r.errors)};
 };
-M.metricLabels={ttft:[I18n.t("首词"),'ms'],total:[I18n.t("首词 + 4 次解码"),'ms'],tps:[I18n.t("解码"),'token/s'],second:[I18n.t("第二轮首词"),'ms'],memory:[I18n.t("常驻内存"),'GB'],scratch:[I18n.t("临时内存"),'MB'],transfer:[I18n.t("交接成本"),'ms'],aneMin:[I18n.t("ANE 工作占比"),'%'],error:[I18n.t("最大数值误差"),'']};
+M.metricLabels={ttft:[I18n.t("首词时间"),'ms'],total:[I18n.t("首词时间 + 4 次解码"),'ms'],tps:[I18n.t("解码速度"),'token/s'],second:[I18n.t("第二轮首词时间"),'ms'],memory:[I18n.t("常驻内存"),'GB'],scratch:[I18n.t("临时内存"),'MB'],transfer:[I18n.t("交接耗时"),'ms'],aneMin:[I18n.t("ANE 工作占比"),'%'],error:[I18n.t("最大数值误差"),'']};
 M.engineCompute=engineCompute;M.quantize=quant;
 })(window.NeuralPrologue);
