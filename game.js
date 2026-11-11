@@ -1,4 +1,4 @@
-import {cardFor,exampleFor,scoreComparison,aggregationExample} from './module-cards.js?v=learning-copy-2';
+import {cardFor,exampleFor,scoreComparison,aggregationExample} from './module-cards.js?v=ffn-progression-1';
 import {createProgress} from './level-progress.js?v=url-navigation-1';
 import {glossary} from './glossary.js?v=glossary-1';
 const M=window.NeuralPrologue,$=s=>document.querySelector(s),clone=x=>JSON.parse(JSON.stringify(x));
@@ -129,7 +129,7 @@ function refreshPauseControl(){
 function togglePause(){
  if(!busy)return;
  if(paused){pausedDuration+=performance.now()-pauseStarted;paused=false;}else{pauseStarted=performance.now();paused=true;}
- refreshPauseControl();say(message(paused?'已暂停：{input}':'正在运行：{input}',{input:samples()[sample].word}));
+ refreshPauseControl();
 }
 $('#pause').onclick=togglePause;
 let fullscreenPending=false,fullscreenFallback=false;
@@ -138,7 +138,7 @@ function syncFullscreen(){
  button.dataset.fullscreenMode=active?(fullscreenFallback?'page':'native'):'off';
  $('#game').classList.toggle('demo-expanded',active);document.body.classList.toggle('demo-fullscreen',active);
  button.textContent=I18n.t(active?'退出全屏':'全屏');button.setAttribute('aria-pressed',String(active));
- button.title=I18n.t(active?'退出全屏（Esc）':'切换全屏。仍可运行和调速。');
+ button.title=I18n.t(active?'退出全屏（Esc）':'全屏查看，保留运行与调速');
  button.disabled=fullscreenPending;
 }
 $('#demo-fullscreen').onclick=async()=>{
@@ -159,7 +159,7 @@ const levelPassed=()=>results.length===stage().sampleCount&&results.every(r=>r.p
 function closeCompletion(){if($('#level-complete').open)$('#level-complete').close();}
 function renderCompletion(){
  $('#complete-level').textContent=stage().chapter+' · '+stage().title;
- $('#complete-detail').textContent=stage().generationRounds?I18n.t('完整模型已连续运行三轮。')+' '+I18n.t('新生成：')+results.map(r=>M.math.vocab[r.actual.at(-1)]).join(' '):stage().demonstration?I18n.t("完整模型已运行完毕。"):stage().engine?I18n.t("数值验证和模拟性能检查全部通过。"):I18n.t("全部输入验证通过。");
+ $('#complete-detail').textContent=stage().generationRounds?I18n.t('完整模型已连续运行三轮。')+' '+I18n.t('新生成：')+results.map(r=>M.math.vocab[r.actual.at(-1)]).join(' '):stage().demonstration?I18n.t("完整模型已运行完毕。"):stage().engine?I18n.t("数值与性能约束全部通过。"):I18n.t("全部输入验证通过。");
  $('#complete-next').textContent=stage().next?I18n.t("下一关 →"):I18n.t("选择关卡");
  const reward=M.fusions[stageId];$('#complete-reward').hidden=!reward;
  if(reward){$('#complete-reward>small').textContent=stage().buildable?M.fusionCopy.collected:M.fusionCopy.storedLater;$('#complete-reward>strong').textContent=M.definitions[reward.kind].name;}
@@ -172,7 +172,7 @@ $('#complete-next').onclick=()=>{closeCompletion();if(stage().next)switchLevel(s
 $('#fusion-skip').onclick=()=>world?.skipFusion?.();
 function engineControls(){
  const c=stage(),area=$('#engine-controls');if(!c.engine){area.innerHTML='';return;}
- area.innerHTML=I18n.t("<div class=\"eyebrow\">引擎参数</div><p class=\"engine-model-note\">教学成本模型 · 非设备实测</p>")+c.controls.map(k=>{const d=M.engineControls[k];return `<label>${d.label}<select data-setting="${k}">${d.values.map(([v,name])=>`<option value="${v}" ${String(state.settings[k])===String(v)?'selected':''}>${name}</option>`).join('')}</select></label>`;}).join('')+I18n.t("<p class=\"engine-model-note\">选中模块，再点击设备区域以分配计算。也可将模块的设备标记拖到该区域。</p>");
+ area.innerHTML=I18n.t("<div class=\"eyebrow\">引擎参数</div><p class=\"engine-model-note\">教学成本模型 · 非设备实测</p>")+c.controls.map(k=>{const d=M.engineControls[k];return `<label>${d.label}<select data-setting="${k}">${d.values.map(([v,name])=>`<option value="${v}" ${String(state.settings[k])===String(v)?'selected':''}>${name}</option>`).join('')}</select></label>`;}).join('')+I18n.t("<p class=\"engine-model-note\">选中模块，再点芯片区域分配；也可拖动模块的芯片标记。</p>");
 }
 function assignDevice(id,device){if(busy||!stage().engine)return;const n=state.nodes.find(n=>n.id===id);if(!n)return;checkpoint();n.device=device;changed();say(nodeName(id)+' → '+device.toUpperCase());}
 function closeReport(restoreFocus=false){$('#run-report').hidden=true;if(restoreFocus)$('#run').focus({preventScroll:true});}
@@ -181,20 +181,19 @@ function renderReport(){
  const panel=$('#run-report'),attentionValues=M.valueForKind(state,current,'softmax')||M.valueForKind(state,current,'attentionweights')||M.valueForKind(state,current,'original-weights');let html=I18n.t("<div class=\"run-report-content\" tabindex=\"0\" aria-label=\"本次运行详情\">");
  if(stage().tokenOutput){html+='<div class="word-trials">'+results.map((r,i)=>`${I18n.t("<div><small>输入：")}${samples()[i].word}</small><strong class="${r.pass?'good':'bad'}">${r.actual?M.readTokens(r.actual):I18n.t("未得到输出")}${I18n.t("</strong><span>目标：")}${M.readTokens(r.expected)}</span></div>`).join('')+I18n.t("</div><p>文字来自词表分数最高的候选。计算出错可能改词，也可能碰巧仍是同一个词。</p>");}
  if(stage().attentionReadout&&attentionValues){const a=M.math.rows(attentionValues,3),words=samples()[sample].word.split(' / ');html+=I18n.t("<h3>各位置从哪里读取内容</h3><div class=\"attention-map\">")+a.map((r,i)=>`<div><b>${words[i]}${I18n.t(" · 位置 ")}${i}</b>${r.map((v,j)=>`<span style="--weight:${Math.max(0,Math.min(1,v))}">${words[j]} ${Math.round(v*100)}%</span>`).join('')}</div>`).join('')+I18n.t("</div><p>比例是这次计算的注意力权重，不是对真实语言理解的完整解释。</p>");}
- if(current?.error){const error=document.createElement('p');error.className='bad run-error';error.textContent=current.error;html+=error.outerHTML;}
- else if(current?.componentIssue){const error=document.createElement('p');error.className='bad';error.textContent=current.componentIssue.message;html+=error.outerHTML;}
- if(!current?.error&&!current?.componentIssue&&stage().resultNote){const r=results[results.length-1];html+=`<p>${r?.pass?I18n.t("数值匹配。"):I18n.t("数值不匹配。")}${stage().resultNote}</p>`;}
- if(current?.cloudMemory){const c=current.cloudMemory,copy=M.cloudCopyLabels;html+=`<div class="cloud-copy-report"><h3>${copy.title}</h3><strong>${c.bytes} B${c.limit!=null?' · '+copy.limit+' '+c.limit+' B':''}</strong><p>${c.copies.map(t=>t.from.toUpperCase()+' → '+t.to.toUpperCase()+': '+t.bytes+' B').join(' · ')}</p><p>${copy.note}</p></div>`;}
+ if(current?.componentIssue)html+=`<p class="bad">${current.componentIssue.message}</p>`;
+ if(!current?.componentIssue&&stage().resultNote){const r=results[results.length-1];html+=`<p>${r?.pass?I18n.t("数值匹配。"):I18n.t("数值不匹配。")}${stage().resultNote}</p>`;}
+ if(current?.cloudMemory){const c=current.cloudMemory,copy=M.cloudCopyLabels;html+=`<div class="cloud-copy-report"><h3>${copy.title}</h3><strong>${c.bytes} B${c.limit!=null?' · '+copy.limit+' '+c.limit+' B':''}</strong><p>${c.copies.map(t=>t.from.toUpperCase()+' → '+t.to.toUpperCase()+': '+t.bytes+' B').join(' · ')}</p><p>${copy.note}</p>${current.error?`<p class="bad">${current.error}</p>`:''}</div>`;}
  if(stageId==='vocabulary'&&current?.values){const logits=M.valueForKind(state,current,'original-head')||M.valueForKind(state,current,'lmhead');if(logits){const scores=M.math.rows(logits,6);html+=I18n.t("<h3>词表分数 · 各位置取最高分</h3><div class=\"vocab-scores\"><div><b>位置</b>")+M.math.vocab.map(v=>'<b>'+v+'</b>').join('')+'</div>'+scores.map((r,i)=>'<div><b>'+i+'</b>'+r.map(v=>`<span class="${v===Math.max(...r)?'winner':''}">${fmt(v)}</span>`).join('')+'</div>').join('')+'</div>';}}
  if(stageId==='autoregressive'&&results.every(r=>r.pass)){const rollout=M.rollout(state,samples()[0].v);html+=I18n.t("<h3>把新词追加回去，连续解码六次</h3><div class=\"word-trials\"><div><strong>")+rollout.text+I18n.t("</strong><small>每次只采用最后一个位置的预测，再更新上下文。</small></div></div>");}
- if(stage().engine&&results.length){html+='<div class="word-trials">'+results.map((r,i)=>`${I18n.t("<div><small>提示：")}${samples()[i].word}</small><strong class="${r.pass?'good':'bad'}">${r.actual?M.decodeFeatures(r.actual):I18n.t("未得到输出")}${I18n.t("</strong><span>目标特征读出：")}${M.decodeFeatures(r.expected)}</span></div>`).join('')+'</div>';}
+ if(stage().engine&&results.length){html+='<div class="word-trials">'+results.map((r,i)=>`${I18n.t("<div><small>提示：")}${samples()[i].word}</small><strong class="${r.pass?'good':'bad'}">${r.actual?M.decodeFeatures(r.actual):I18n.t("未输出")}${I18n.t("</strong><span>目标读出：")}${M.decodeFeatures(r.expected)}</span></div>`).join('')+'</div>';}
  if(engineReport){if(['kv-cache','capstone'].includes(stageId)){const t=engineReport.cacheTrace;html+=`${I18n.t("<h3>逐词计算检查 · 3 个位置</h3><p>")}${state.settings.cache?I18n.t("保留旧 K/V"):I18n.t("每步重算历史")}${I18n.t("：共计算 ")}${t.processed}${I18n.t(" 个位置的 K/V。两种方法的 Attention 数值一致；缓存减少重复投影，但仍然读取历史 K/V。</p>")}`;}html+=I18n.t("<p>教学模拟 · 时间包含派发、同步与数据读写；ANE 工作占比表示分配的计算量，不是硬件计数器。</p>");
  engineReport.runs.forEach((r,i)=>{html+=`${I18n.t("<h3>负载 ")}${i+1} · ${r.work.prompt}${I18n.t(" 个提示位置 / ")}${r.work.context}${I18n.t(" 个上下文位置</h3><div class=\"metric-grid\">")}`+r.checks.map(c=>{const [name,unit]=M.metricLabels[c.key];return `<div class="${c.pass?'good':'bad'}"><small>${name}</small><strong>${fmt(c.value)} <em>${unit}${I18n.t("</em></strong><span>目标 ")}${c.key==='tps'||c.key==='aneMin'?'≥':'≤'} ${c.target} ${unit}</span></div>`;}).join('')+'</div>';
- if(r.errors.length)html+='<p class="bad">'+r.errors.map(escapeText).join(I18n.language()==='en'?'; ':'；')+'</p>';
+ if(r.errors.length)html+='<p class="bad">'+r.errors.join('；')+'</p>';
  html+='<div class="runtime-timeline">'+r.timeline.map(t=>`<div class="lane-${t.device}" style="flex:${Math.max(1,t.duration)}" title="${t.name} · ${fmt(t.duration)} ms"><b>${t.device.toUpperCase()}</b><span>${t.name}</span><small>${fmt(t.duration)} ms</small></div>`).join('')+'</div>';});}
- if(stage().demonstration&&results.every(r=>r.pass))html+=I18n.t('<div class="campaign-complete"><span>演示完成</span><h3>完整模型已运行</h3><p>返回关卡菜单，可选择主线、现代扩展、云端推理或端侧推理。已保存的接线会保留。</p></div>');
- if(stageId==='capstone'&&engineReport?.pass&&results.every(r=>r.pass))html+=I18n.t("<div class=\"campaign-complete\"><span>综合验证通过</span><h3>两种负载均符合要求</h3><p>数值验证和全部模拟预算检查通过。返回工作台后，可调整参数，比较不同调度方案。</p></div>");
- if(!stage().sequence)html+=I18n.t("<p>输入与输出都是特征向量，不是生成的新词。</p>");
+ if(stage().demonstration&&results.every(r=>r.pass))html+=I18n.t('<div class="campaign-complete"><span>主线完成</span><h3>从向量，到逐词生成</h3><p>所有主线关卡都可以重玩。端侧推理的独立挑战在关卡菜单的番外中。</p></div>');
+ if(stageId==='capstone'&&engineReport?.pass&&results.every(r=>r.pass))html+=I18n.t("<div class=\"campaign-complete\"><span>番外完成</span><h3>从一个向量，到可运行的端侧引擎</h3><p>你已经完成数值计算、注意力、逐词生成，以及正确性、内存和速度的联合验收。所有关卡仍可重玩，继续比较不同调度方案。</p></div>");
+ if(!stage().sequence)html+=I18n.t("<p>输入与输出都是特征向量，分别对应“我 / 爱 / 猫”，不是生成的新词。</p>");
  panel.innerHTML=html+I18n.t("</div><button type=\"button\" class=\"report-close\" data-close-report aria-label=\"关闭运行说明\" title=\"关闭运行说明\">×</button>");panel.hidden=false;glossary.scan(document.body);
 }
 $('#engine-controls').addEventListener('change',e=>{const key=e.target.dataset.setting;if(!key||busy)return;checkpoint();state.settings[key]=M.engineControls[key].values.find(([v])=>String(v)===e.target.value)[0];changed();});
@@ -227,9 +226,9 @@ function stageChrome(){
  if(!c.floating)fullscreenFallback=false;
  $('#demo-fullscreen').hidden=!c.floating;syncFullscreen();
  if(!c.floating&&document.fullscreenElement===$('#game'))document.exitFullscreen().catch(()=>{});
- $('#scene').setAttribute('aria-label',I18n.t(c.floating?'拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放':c.demonstration?'拖动旋转视角 · 双击查看基础模块':'拖动空白区域旋转视角。未运行时可拖动模块调整位置。'));
+ $('#scene').setAttribute('aria-label',I18n.t(c.floating?'拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放':c.demonstration?'拖动转动视角 · 双击查看基础组件':'拖动空白转动视角，拖动模块重新摆放'));
  $('#demo-follow').hidden=!c.floating;$('#demo-follow-next').hidden=!c.floating;$('#demo-follow-view').hidden=!c.floating;$('#demo-pan').hidden=false;$('#demo-views').hidden=!c.demonstration;$('#demo-views').innerHTML=(c.demoViews||[]).map(view=>`<button type="button" data-demo-view="${view.key}">${view.label}</button>`).join('');
- document.body.dataset.stageColor=stageColor(c);renderStructureMap();document.body.classList.toggle('engine-level',!!c.engine);$('#device-docks').hidden=!c.engine;resetReport();$('#engine-controls').hidden=!c.engine;engineControls();$('.scene-legend').hidden=c.nodes.length===0;$('.scene-identity .chip').textContent=c.demonstration?I18n.t('完整演示'):I18n.t('自由接线');$('#scene-help').textContent=c.floating?I18n.t('拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放'):c.demonstration?I18n.t('拖动旋转视角 · 双击查看基础模块'):c.nodes.length?I18n.t("拖动模块调整位置 · 选中连线后点击删除连线 · 双击模块查看说明"):I18n.t("圆形端口输出，方形端口输入 · 拖动空白区域旋转视角");$('#pass-count').textContent='0 / '+c.sampleCount;document.title=I18n.t("神经工坊 · ")+c.title;$('.chapter span').textContent=c.chapter;$('.chapter strong').textContent=c.title;
+ document.body.dataset.stageColor=stageColor(c);renderStructureMap();document.body.classList.toggle('engine-level',!!c.engine);$('#device-docks').hidden=!c.engine;resetReport();$('#engine-controls').hidden=!c.engine;engineControls();$('.scene-legend').hidden=c.nodes.length===0;$('.scene-identity .chip').textContent=c.demonstration?I18n.t('完整演示'):I18n.t('自由接线');$('#scene-help').textContent=c.floating?I18n.t('拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放'):c.demonstration?I18n.t('拖动转动视角 · 双击查看基础组件'):c.nodes.length?I18n.t("拖模块摆放 · 点连线删除 · 双击查看模块卡"):I18n.t("圆口出，方口进 · 拖动空白转动视角");$('#pass-count').textContent='0 / '+c.sampleCount;document.title=I18n.t("神经工坊 · ")+c.title;$('.chapter span').textContent=c.chapter;$('.chapter strong').textContent=c.title;
  $('.mission h2').textContent=c.mission;$('.mission p').textContent=c.description;$('#mission-limits').innerHTML=c.engine?Object.entries(c.limits).map(([key,value])=>{const [name,unit]=M.metricLabels[key];return `<span>${name} ${key==='tps'||key==='aneMin'?'≥':'≤'} ${value} ${unit}</span>`;}).join(''):'';
  const reason=c.rationale,details=$('#mission-details');$('#mission-reason').hidden=!reason;
  if(details.dataset.lesson!==c.id){details.toggleAttribute('open',!!c.practice||c.id==='pack-scores');details.dataset.lesson=c.id;}
@@ -238,7 +237,7 @@ function stageChrome(){
   const el=$('#mission-reason-'+field);el.textContent=reason?.[field]||'';el.hidden=!reason?.[field];
  }
  if(reason?.kind==='swiglu'){
-  $('#mission-reason-example').innerHTML=`<div class="swiglu-primer"><h4>${I18n.t("SwiGLU 是哪一段？")}</h4><p>${I18n.t("SwiGLU FFN 包含双路门控和降维。本关使用归一化输入 Z，并将 FFN 输出与原始输入 R 相加。")}</p><div class="swiglu-source">${I18n.t("同一份输入 Z")}</div><div class="swiglu-branches"><div><b>${I18n.t("线性投影")}</b><span>${I18n.t("内容特征")}</span></div><div class="swiglu-gate"><b>${I18n.t("门投影 → SiLU")}</b><span>${I18n.t("调节系数")}</span></div></div><div class="swiglu-merge"><span aria-hidden="true">↓</span><b>${I18n.t("逐元素相乘")}</b><span aria-hidden="true">↓</span><b>${I18n.t("降维投影")}</b></div><p>${I18n.t("内容值为 2 时，乘以系数 0.3 得到 0.6，乘以 1.5 得到 3。系数随输入变化，调节各特征的贡献。")}</p></div>`;
+  $('#mission-reason-example').innerHTML=`<div class="swiglu-primer"><h4>${I18n.t("SwiGLU 是哪一段？")}</h4><p>${I18n.t("前面的进阶关已经把双路门控与降维组成 SwiGLU FFN；本关再接入归一化输入和残差。")}</p><div class="swiglu-source">${I18n.t("同一份输入 Z")}</div><div class="swiglu-branches"><div><b>${I18n.t("线性投影")}</b><span>${I18n.t("内容特征")}</span></div><div class="swiglu-gate"><b>${I18n.t("门投影 → SiLU")}</b><span>${I18n.t("调节系数")}</span></div></div><div class="swiglu-merge"><span aria-hidden="true">↓</span><b>${I18n.t("逐元素相乘")}</b><span aria-hidden="true">↓</span><b>${I18n.t("降维投影")}</b></div><p>${I18n.t("同样的内容值 2，乘系数 0.3 得到 0.6，乘 1.5 得到 3。系数随输入变化，决定这个特征贡献多少。")}</p></div>`;
  }else if(reason?.kind==='encoder-layer'){
   $('#mission-reason-example').innerHTML=encoderPrimer();
  }else if(reason?.kind==='masked-heads'){
@@ -257,7 +256,7 @@ function stageChrome(){
  }).join('')}</tbody></table>`:'';
  if(c.packages?.length){
   const introduction=c.id==='pack-scores';
-  $('#mission-reason-example').innerHTML+=c.packages.map(kind=>`<details class="package-primer" ${introduction?'open':''}><summary>${c.packageLabel||(c.id==='pack-scores'?I18n.t('已收录模块'):I18n.t('新组合模块'))} · ${M.definitions[kind].name}</summary>${packageDiagram(kind)}</details>`).join('');
+  $('#mission-reason-example').innerHTML+=c.packages.map(kind=>`<details class="package-primer" ${introduction?'open':''}><summary>${c.packageLabel||(c.id==='pack-scores'?I18n.t('已收录组件'):I18n.t('新组合组件'))} · ${M.definitions[kind].name}</summary>${packageDiagram(kind)}</details>`).join('');
  }
  $('#mission-reason-example').hidden=!$('#mission-reason-example').hasChildNodes();
  $('.route').innerHTML=`${c.routeInput?'<span>'+c.routeInput+'</span><i>→</i>':I18n.t("<span>输入 token</span><i>→</i>")}${c.id==='ffn'?I18n.t("<span>归一化输入 · 已就绪</span><i>→</i>"):''}${c.concept===c.title?'':'<span>'+c.concept+'</span><i>→</i>'}<strong>${c.outputTitle}</strong>${I18n.t('<span class="route-tail">教学缩尺 ')}${c.shape}</span>`;
@@ -330,11 +329,11 @@ const shell=window.AtelierShell?.init({beforeLanguageChange:save,onEnter:()=>lev
 navigate(initialNavigation,{source:'boot'});
 I18n.onChange(()=>{
  const reportWasOpen=!$('#run-report').hidden;
- if(current&&(current.error||stage().cloudSingle||current.componentIssue))current=M.evaluate(state,samples()[sample].v);
+ if(current&&(stage().cloudSingle||current.componentIssue))current=M.evaluate(state,samples()[sample].v);
  stageChrome();setPlaybackSpeed(playbackSpeed,false);world?.relocalize();refresh();
  if(engineReport)engineReport=M.engineReport(state);
  if(reportWasOpen)renderReport();
- if(!busy)say('');else say(message(paused?'已暂停：{input}':'正在运行：{input}',{input:samples()[sample].word}));
+ if(!busy)say('');
  if($('#level-menu').open){renderLevelMenu();positionLevelMenu(false);}
  if($('#level-complete').open)renderCompletion();
  glossary.scan(document.body);
@@ -361,32 +360,30 @@ $('#level-list').onclick=e=>{const b=e.target.closest('[data-level]');if(b)switc
 $('#level-tracks').onclick=e=>{const b=e.target.closest('[data-track]');if(b&&b.dataset.track!==menuTrack)navigate({...navigationState,trackId:b.dataset.track,groupId:null});};
 $('#next-level').onclick=()=>switchLevel(stage().next);
 function say(text,tone=''){$('#feedback').textContent=text;$('#feedback').className='feedback '+tone;glossary.scan(document.body);}
-function message(source,values){return I18n.t(source).replace(/\{(\w+)\}/g,(token,key)=>Object.hasOwn(values,key)?String(values[key]):token);}
-function escapeText(text){return String(text).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
 function checkpoint(){history.push(clone(state));if(history.length>40)history.shift();}
 function changed(){demoSamples=null;closeCompletion();resetReport();engineReport=null;fault=null;current=null;selectedWire=actionNode=lastFusionKind=null;results=[];sample=0;level=99;world?.clearConnectionError?.();world?.clearPreview?.();save();world?.rebuild();refresh();}
 function select(id){if(world?.focused())return;selected=id;selectedWire=null;actionNode=stage().buildable?id:null;world?.labels();renderShelf();}
 function outputName(id){if(stage().sourceNames?.[id])return stage().sourceNames[id];return id==='R'?(stageId==='ffn'?I18n.t("原始输入 R"):I18n.t("输入 X")):id==='Z'?I18n.t("归一化输入 Z"):nodeName(id);}
-function chooseOutput(id){if(busy||stage().demonstration)return;placing=selectedWire=actionNode=null;world?.clearConnectionError?.();world?.clearPlacement?.();world?.clearPreview?.();pending=pending===id?null:id;world?.labels();say(pending?message('已选择 {name} 的输出。请选择方形输入端口。',{name:outputName(id)}):I18n.t("已取消连线。"));}
+function chooseOutput(id){if(busy||stage().demonstration)return;placing=selectedWire=actionNode=null;world?.clearConnectionError?.();world?.clearPlacement?.();world?.clearPreview?.();pending=pending===id?null:id;world?.labels();say(pending?`${I18n.t("已拿起「")}${outputName(id)}${I18n.t("」的线，点一个方形输入口。")}`:I18n.t("已放下连线。"));}
 function link(from,to,port){
  if(busy||stage().demonstration)return;const next=clone(state),err=M.connect(next,from,to,port);
  if(err){
   const source=stage().sources.includes(from),out=source?(stage().sourceDim||2):definition(from)?.out,dim=to==='sink'?stage().sinkDim:definition(to)?.ins[port];
-  const messageText=from!==to&&out&&dim&&out!==dim?message('维度不匹配：输出为 {actual}，输入需要 {expected}。请选择维度匹配的端口。',{actual:source?shape(out):moduleShape(kindOf(from),out),expected:to==='sink'?shape(dim):moduleShape(kindOf(to),dim)}):err;
-  say(messageText,'error');world?.showConnectionError?.(messageText,to,port);return;
+  const message=from!==to&&out&&dim&&out!==dim?`${I18n.t("尺寸不匹配：输出 ")}${source?shape(out):moduleShape(kindOf(from),out)}${I18n.t("，入口需要 ")}${to==='sink'?shape(dim):moduleShape(kindOf(to),dim)}`:err;
+  say(message,'error');world?.showConnectionError?.(message,to,port);return;
  }
  checkpoint();state=next;pending=null;changed();say(I18n.t("已连接。"));
 }
 function chooseWire(to,index){if(busy||stage().demonstration)return;const from=to==='sink'?state.sink:state.nodes.find(n=>n.id===to)?.links[index];if(!from)return;pending=placing=actionNode=null;selectedWire={from,to,index};world?.clearConnectionError?.();world?.clearPreview?.();world?.clearPlacement?.();world?.labels();}
 function deleteWire(){if(busy||!selectedWire)return;const {to,index}=selectedWire;checkpoint();M.disconnect(state,to,index);changed();say(I18n.t("已删除连线。"));}
-function chooseInput(to,port){if(busy||stage().demonstration)return;if(pending)return link(pending,to,port);const old=to==='sink'?state.sink:state.nodes.find(n=>n.id===to).links[port];if(!old)return say(I18n.t("先选择圆形输出端口，再选择此输入端口。"));chooseWire(to,port);}
+function chooseInput(to,port){if(busy||stage().demonstration)return;if(pending)return link(pending,to,port);const old=to==='sink'?state.sink:state.nodes.find(n=>n.id===to).links[port];if(!old)return say(I18n.t("先点一个圆形输出口，再接到这里。"));chooseWire(to,port);}
 const shelfUnlocked=kind=>M.fusions[stageId]?.kind!==kind||stage().nodes.includes(kind)||progress.completed(stageId);
 const shelfInventory=()=>stage().buildable?M.inventory(stage()):M.fusions[stageId]&&progress.completed(stageId)?{[M.fusions[stageId].kind]:1}:{};
 function renderShelf(){
  hideShelfTooltip();
  const shelf=$('#module-shelf'),available=shelfInventory(),collection=!stage().buildable;shelf.hidden=!stage().buildable&&!Object.keys(available).length;shelf.dataset.mode=collection?'collection':'inventory';
  if(shelf.hidden)return;
- const cap=M.moduleLimit(stage());$('#module-count').textContent=collection?M.fusionCopy.collectedShort:state.nodes.length+' / '+cap;$('#module-count').setAttribute('aria-label',collection?M.fusionCopy.collected:I18n.t('台面模块数 / 上限'));
+ const cap=M.moduleLimit(stage());$('#module-count').textContent=collection?M.fusionCopy.collectedShort:state.nodes.length+' / '+cap;$('#module-count').setAttribute('aria-label',collection?M.fusionCopy.collected:I18n.t('台面数量 / 上限'));
  shelf.querySelector('summary').title=shelf.hasAttribute('open')?I18n.t("收起组件架"):I18n.t("展开组件架");
  const palette=$('#module-palette'),earlier=palette.querySelector('[data-earlier-parts]'),earlierOpen=earlier?.dataset.shelfLevel===stageId&&earlier.hasAttribute('open'),scrollTop=palette.scrollTop;
  const kinds=[...new Set((collection?Object.keys(available):state.palette||Object.keys(available)).filter(shelfUnlocked).map(kind=>M.shelfKind(stage(),kind)))];
@@ -397,12 +394,10 @@ function renderShelf(){
   const color=M.extraColors?.[kind]?'#'+M.extraColors[kind].toString(16).padStart(6,'0'):({project:'#5eaa9c',down:'#90a79a',add:'#c3a26f',gate:'#a894bf'})[kind]||'#8aa59a';
   const code=({'silu-ffn':'SiLU','swiglu-ffn':'SwiGLU','swiglu-residual':'+ FFN','original-transformer':'Enc/Dec','modern-block':'Block','single-attention':'1H','two-head-attention':'2H','single-cross-attention':'Cross',relu:'ReLU',layernorm2:'LN','ln-attn':'LN','ln-ffn':'LN','ln-cross':'LN',concat:'A ∥ B',position:'PE',project:'W',gate:'Wg',down:'Wd',output:'Wo',q:'Q',k:'K',v:'V',ropeq:'Q ↻',ropek:'K ↻',residual1:'+ A',residual2:'+ F'})[kind]||({activation:'SiLU',add:'+',residual:'+',multiply:'×',norm:'RMS',score:'QKᵀ',mask:'◩',softmax:'σ',mix:'AV',attention:'Attn',ffn:'FFN'})[d.type]||kind;
   const origin=M.packageOrigin(kind),source=origin?I18n.t('来源：')+origin.chapter:'';
-  const reason=busy?I18n.t('运行中无法添加模块。请先停止运行。'):collection?M.fusionCopy.useLater:!available[kind]?I18n.t('本关不提供此模块。'):remaining<=0?I18n.t('此模块已全部放置。'):state.nodes.length>=cap?message('台面已达到 {count} 个模块的上限。请先移除一个模块。',{count:cap}):!M.canAdd(state,kind)?I18n.t('本关无法添加此模块。'):'';
-  const quantity=collection?'':message('可用数量：{remaining} / {total}。',{remaining,total:available[kind]});
-  const guidance=[quantity,reason,!busy&&I18n.t('双击或按 Enter 查看说明。')].filter(Boolean).join(' ');
+  const guidance=`${collection?M.fusionCopy.useLater:I18n.t("可用数量")+' '+remaining+' / '+available[kind]} · ${I18n.t("双击查看说明")}`;
   const tooltip=source?source+'\n'+guidance:guidance;
   const description=`${name} · ${d.ins.map(dim=>moduleShape(kind,dim)).join(' + ')} → ${moduleShape(kind,d.out)} · ${source?source+' · ':''}${guidance}`;
-  return `<div class="module-stock ${lastFusionKind===kind?'recently-crafted':''}" role="button" tabindex="${busy?'-1':'0'}" aria-disabled="${busy}" data-add-disabled="${disabled}" aria-label="${escapeText(description)}" data-tooltip="${escapeText(tooltip)}" data-add-module="${kind}" style="--stock-color:${color}">${visual}<span class="stock-description"><b class="stock-name">${name}</b><small>${d.ins.map(dim=>moduleShape(kind,dim)).join(' + ')} → ${moduleShape(kind,d.out)}</small></span><b class="stock-code" aria-hidden="true">${code}</b><span class="stock-count" aria-hidden="true">${remaining}</span></div>`;
+  return `<div class="module-stock ${lastFusionKind===kind?'recently-crafted':''}" role="button" tabindex="${busy?'-1':'0'}" aria-disabled="${busy}" data-add-disabled="${disabled}" aria-label="${description}" data-tooltip="${tooltip}" data-add-module="${kind}" style="--stock-color:${color}">${visual}<span class="stock-description"><b class="stock-name">${name}</b><small>${d.ins.map(dim=>moduleShape(kind,dim)).join(' + ')} → ${moduleShape(kind,d.out)}</small></span><b class="stock-code" aria-hidden="true">${code}</b><span class="stock-count" aria-hidden="true">${remaining}</span></div>`;
  };
  const grouping=stage().shelf;
  if(grouping){
@@ -418,8 +413,8 @@ function renderShelf(){
  world?.syncShelf?.();
  glossary.scan(document.body);
 }
-function chooseModule(kind){if(busy||!stage().buildable||!shelfUnlocked(kind)||!M.canAdd(state,kind)||world?.focused())return;pending=selectedWire=actionNode=null;placing=kind;world?.clearConnectionError?.();world?.clearPreview?.();world?.labels();say(I18n.t("拖到台面空位后松开，或点击空位放置。"));}
-function placeModule(x,z){if(!placing||busy)return false;const next=clone(state);if(!M.addNode(next,placing,x,z)){const message=I18n.t("此处无法放置模块。请选择台面上的其他空位。");say(message,'error');world?.showPlacementError?.(message,x,z);return false;}checkpoint();selected=next.nodes.at(-1).id;state=next;placing=null;world?.clearPlacement?.();changed();say(I18n.t("模块已放置。"));return true;}
+function chooseModule(kind){if(busy||!stage().buildable||!shelfUnlocked(kind)||!M.canAdd(state,kind)||world?.focused())return;pending=selectedWire=actionNode=null;placing=kind;world?.clearConnectionError?.();world?.clearPreview?.();world?.labels();say(I18n.t("拖到台面松开；也可以点空位放下。"));}
+function placeModule(x,z){if(!placing||busy)return false;const next=clone(state);if(!M.addNode(next,placing,x,z)){const message=I18n.t("这里放不下，换一处空位。");say(message,'error');world?.showPlacementError?.(message,x,z);return false;}checkpoint();selected=next.nodes.at(-1).id;state=next;placing=null;world?.clearPlacement?.();changed();say(I18n.t("组件已放置。"));return true;}
 function hideShelfTooltip(){
  const tip=$('#shelf-tooltip');tip.hidden=true;
  document.querySelector('[aria-describedby="shelf-tooltip"]')?.removeAttribute('aria-describedby');
@@ -442,7 +437,7 @@ window.addEventListener?.('resize',hideShelfTooltip);
 $('#module-palette').onclick=e=>{if(suppressPaletteClick||world?.focused())return;const b=e.target.closest('[data-add-module]');if(b&&b.dataset.addDisabled!=='true')chooseModule(b.dataset.addModule);};
 $('#module-palette').ondblclick=e=>{const b=e.target.closest('[data-add-module]');if(!b||busy||suppressPaletteClick)return;e.preventDefault();world?.focusShelf?.(b.dataset.addModule);};
 $('#module-palette').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const b=e.target.closest('[data-add-module]');if(!b||busy)return;e.preventDefault();if(e.key==='Enter')world?.focusShelf?.(b.dataset.addModule);else if(b.dataset.addDisabled!=='true')chooseModule(b.dataset.addModule);});
-function removeModule(id=selected){if(busy)return;const next=clone(state);if(!M.removeNode(next,id))return;checkpoint();state=next;if(selected===id)selected=null;pending=placing=actionNode=null;world?.clearPlacement?.();changed();say(I18n.t("模块已移回组件架，相关连线已删除。"));}
+function removeModule(id=selected){if(busy)return;const next=clone(state);if(!M.removeNode(next,id))return;checkpoint();state=next;if(selected===id)selected=null;pending=placing=actionNode=null;world?.clearPlacement?.();changed();say(I18n.t("组件已收回，相关连线已移除。"));}
 function renderGeneration(){
  const area=$('#demo-generation');area.hidden=!stage().generationRounds;if(area.hidden)return;
  const seed=M.samplesFor(stageId)[0].v,generated=results.filter(r=>r.pass).map(r=>r.actual.at(-1));
@@ -450,7 +445,7 @@ function renderGeneration(){
  $('#demo-transcript').replaceChildren(...[...seed,...generated].map((id,i)=>{const el=document.createElement('span');el.className=i<seed.length?'seed-token':'generated-token';el.textContent=M.math.vocab[id];return el;}));
  $('#demo-transcript').setAttribute('aria-label',I18n.t('完整文字'));
 }
-function refresh(){renderGeneration();refreshPauseControl();$('#progress-reset').disabled=busy;$('#progress-reset-apply').disabled=busy;$('#progress-restart').disabled=busy;$('#progress-restart-undo').disabled=busy;$('#progress-restart-undo').hidden=!progress.canUndoRestart();document.body.classList.toggle('network-running',busy);renderShelf();const t=samples()[sample];const won=levelPassed();$('.route strong').textContent=stage().outputTitle+(won?I18n.t(" · 已通过"):'');$('#next-level').hidden=!(won||progress.completed(stageId))||!stage().next;$('#engine-controls').querySelectorAll('input,select,button').forEach(e=>e.disabled=busy);$('#device-docks').querySelectorAll('button').forEach(e=>e.disabled=busy);$('#sample-name').textContent=t.word;$('#sample-value').textContent=stage().generationRounds?I18n.t('目标输入 · 最近三个词'):stage().sequence?(stage().sourceDim===3?'Token ID '+vector(t.v):I18n.t(stage().sourceDim===12?"3 个位置 × 4 个特征":"3 个位置 × 2 个特征")):vector(t.v);$('#pass-count').textContent=results.filter(r=>r.pass).length+' / '+stage().sampleCount;$('#test-results').innerHTML=results.map((r,i)=>`<div class="test-row ${r.pass?'pass':'fail'}"><span>${r.pass?'✓':'×'} ${samples()[i].word}</span><span>${stage().tokenOutput&&r.actual?M.readTokens(r.actual):stage().sequence?(r.actual?I18n.t("矩阵 ")+shape(r.actual.length):I18n.t("等待输入")):(r.pass?vector(r.actual):comparisonValues(r.actual,r.expected).actual)}</span></div>`).join('');$('#run').disabled=!world;$('#run').innerHTML=busy?I18n.t("<span>■</span> 停止"):I18n.t("<span>▶</span> 运行");$('#undo').disabled=busy||!history.length;$('#reset').disabled=busy;$('#reset').hidden=!!stage().demonstration;$('#undo').hidden=!!stage().demonstration;$('#restore-layout').hidden=!progress.canRestore(stageId,state);$('#restore-layout').disabled=busy;glossary.scan(document.body);}
+function refresh(){renderGeneration();refreshPauseControl();$('#progress-reset').disabled=busy;$('#progress-reset-apply').disabled=busy;$('#progress-restart').disabled=busy;$('#progress-restart-undo').disabled=busy;$('#progress-restart-undo').hidden=!progress.canUndoRestart();document.body.classList.toggle('network-running',busy);renderShelf();const t=samples()[sample];const won=levelPassed();$('.route strong').textContent=stage().outputTitle+(won?I18n.t(" · 已通过"):'');$('#next-level').hidden=!(won||progress.completed(stageId))||!stage().next;$('#engine-controls').querySelectorAll('input,select,button').forEach(e=>e.disabled=busy);$('#device-docks').querySelectorAll('button').forEach(e=>e.disabled=busy);$('#sample-name').textContent=t.word;$('#sample-value').textContent=stage().generationRounds?I18n.t('目标输入 · 最近三个词'):stage().sequence?(stage().sourceDim===3?'Token ID '+vector(t.v):I18n.t(stage().sourceDim===12?"3 个位置 × 4 个特征":"3 个位置 × 2 个特征")):vector(t.v);$('#pass-count').textContent=results.filter(r=>r.pass).length+' / '+stage().sampleCount;$('#test-results').innerHTML=results.map((r,i)=>`<div class="test-row ${r.pass?'pass':'fail'}"><span>${r.pass?'✓':'×'} ${samples()[i].word}</span><span>${stage().tokenOutput&&r.actual?M.readTokens(r.actual):stage().sequence?(r.actual?I18n.t("矩阵 ")+shape(r.actual.length):I18n.t("等待输入")):(r.pass?vector(r.actual):comparisonValues(r.actual,r.expected).actual)}</span></div>`).join('');$('#run').disabled=!world;$('#run').innerHTML=busy?I18n.t("<span>■</span> 停止"):I18n.t("<span>▶</span> 试跑我的网络");$('#undo').disabled=busy||!history.length;$('#reset').disabled=busy;$('#reset').hidden=!!stage().demonstration;$('#undo').hidden=!!stage().demonstration;$('#restore-layout').hidden=!progress.canRestore(stageId,state);$('#restore-layout').disabled=busy;;glossary.scan(document.body);}
 function stopRun(){
  if(!busy&&!paused)return;
  busy=paused=false;runId++;world?.clearPackets();world?.labels();refresh();
@@ -462,11 +457,11 @@ async function run(){
  for(let i=0;i<stage().sampleCount;i++){
   sample=i;current=M.evaluate(state,samples()[i].v);level=0;
   const expected=M.reference(samples()[i].v,stageId),actual=current.output;
-  refresh();world.labels();say(message('正在运行：{input}',{input:samples()[i].word}));
+  refresh();world.labels();say(`${I18n.t("试跑：「")}${samples()[i].word}」`);
   await world.animate(current,650,id);
   if(id!==runId||!busy)return;
   const pass=!current.error&&!!actual&&actual.length===expected.length&&actual.every((x,j)=>Number.isFinite(x)&&Math.abs(x-expected[j])<(stage().engine?(stage().limits?.error||.06):1e-9));results.push({pass,actual,expected});
-  if(!pass){fault={id:'sink',actual,expected};level=99;busy=paused=false;if(stage().engine)engineReport=M.engineReport(state);world.labels();refresh();renderReport();say(message('输入 {input} 未通过验证。请查看运行报告。',{input:samples()[i].word}),'error');return;}
+  if(!pass){fault={id:'sink',actual,expected};level=99;busy=paused=false;if(stage().engine)engineReport=M.engineReport(state);world.labels();refresh();renderReport();say(`「${samples()[i].word}${I18n.t("」未通过。")}`,'error');return;}
   level=99;world.labels();refresh();
   if(stage().generationRounds&&i+1<stage().sampleCount){
    demoSamples[i+1]=M.demo.sampleFor(M.demo.nextInput(samples()[i].v,actual));
@@ -484,14 +479,14 @@ async function run(){
    if(id!==runId||!busy)return;
   }
  }
- busy=paused=false;world.labels();refresh();renderReport();say(stage().engine?(engineReport.pass?I18n.t("数值验证和模拟性能检查全部通过。"):I18n.t("数值验证通过，模拟性能未达标。请查看运行报告中的未通过项。")):message('全部 {count} 组输入验证通过。',{count:stage().sampleCount}),stage().engine&&!engineReport.pass?'error':'success');showCompletion();
+ busy=paused=false;world.labels();refresh();renderReport();say(stage().engine?(engineReport.pass?I18n.t("数值与性能约束全部通过。"):I18n.t("数值通过；性能验收未通过，查看运行报告。")):`${I18n.t("通过：")}${stage().sampleCount} / ${stage().sampleCount}。`,stage().engine&&!engineReport.pass?'error':'success');showCompletion();
 }
 $('#run').onclick=run;$('#undo').onclick=()=>{state=history.pop();pending=null;changed();say(I18n.t("已撤销。"));};$('#reset').onclick=()=>{checkpoint();state=M.initial(stageId);selected=pending=placing=null;world?.clearPlacement?.();changed();say(I18n.t("已恢复本关起点。"));};
 let progressResetMessage='',progressResetMode='badges';
 function progressResetStatus(message){progressResetMessage=message;$('#progress-reset-status').textContent=I18n.t(message);$('#progress-reset-status').hidden=false;}
 function renderProgressReset(){
  const all=progressResetMode==='all';
- $('#progress-reset-description').textContent=I18n.t(all?'将所有关卡恢复到初始状态并清除通关标记？预设模块会保留，自行添加的模块和连线会重置。语言、音乐和速度不变。可用“撤销上次全部重置”恢复重置前的进度。':'清除所有关卡的通关标记和完成计数？模块、连线和设置会保留。此操作无法撤销。');
+ $('#progress-reset-description').textContent=I18n.t(all?'所有关卡回到初始状态，并清除通关标记？教学预设组件会保留，自己添加的组件和连线会重置。语言、音乐和速度不变；之后可撤销这次重置。':'把所有关卡标为未通过？已搭好的组件和连线会保留，通关标记与完成计数会清零。此操作无法撤销。');
  $('#progress-reset-apply').textContent=I18n.t(all?'确认重新开始':'确认清除');
 }
 I18n.onChange(()=>{renderProgressReset();if(progressResetMessage)$('#progress-reset-status').textContent=I18n.t(progressResetMessage);});
@@ -569,7 +564,7 @@ try{
  }
  function showPlacementError(message,x,z){
   if(!Number.isFinite(x)||!Number.isFinite(z))return;
-  showSceneError(I18n.t('模块未放置'),message,{position:new T.Vector3(x,0,z)});
+  showSceneError(I18n.t('组件未放置'),message,{position:new T.Vector3(x,0,z)});
  }
  function syncConnectionError(w,h){
   if(!connectionNotice)return;const {el,to,port,position}=connectionNotice;
@@ -606,25 +601,25 @@ try{
   const edge=selectedWire&&curves.find(c=>c.to===selectedWire.to&&c.index===selectedWire.index&&c.from===selectedWire.from);
   if(edge&&!busy&&!focusId)addLabel('div','wire-actions',`<span>${outputName(edge.from)} → ${edge.to==='sink'?stage().outputTitle:nodeName(edge.to)}</span><button type="button" data-delete-wire>${I18n.t("删除连线")}</button><button type="button" data-close-wire aria-label="${I18n.t("关闭")}">×</button>`,{},()=>edge.curve.getPoint(.5));
   const removable=stage().buildable&&state.nodes.find(n=>n.id===actionNode);
-  if(removable&&!busy&&!focusId&&!pending&&!placing&&!selectedWire)addLabel('div','wire-actions node-actions',`<button type="button" data-delete-node="${removable.id}">${I18n.t("删除模块")}</button><button type="button" data-close-node aria-label="${I18n.t("关闭")}">×</button>`,{'data-owner':removable.id},()=>new T.Vector3(removable.x,.7,removable.z+1.1));
+  if(removable&&!busy&&!focusId&&!pending&&!placing&&!selectedWire)addLabel('div','wire-actions node-actions',`<button type="button" data-delete-node="${removable.id}">${I18n.t("删除组件")}</button><button type="button" data-close-node aria-label="${I18n.t("关闭")}">×</button>`,{'data-owner':removable.id},()=>new T.Vector3(removable.x,.7,removable.z+1.1));
   addLabel('span','source-label',`<b>${stage().sourceTitle}</b>${stage().sourceNote?'<br>'+stage().sourceNote:''}`,{'data-source-label':'R'},()=>new T.Vector3(stage().sourceX,sourceY('R')+(stage().dualSource?.95:1.6),art.sourceOffset(stage(),'R')-2.05));
   if(stage().dualSource)addLabel('span','source-label',`<b>${stage().sourceNames.Z}</b><br>${stage().secondaryTitle}`,{'data-source-label':'Z'},()=>new T.Vector3(stage().sourceX,sourceY('Z')+.95,art.sourceOffset(stage(),'Z')-2.05));
   addLabel('span','source-label',`<b>${stage().outputTitle}</b><br>${stage().tokenOutput?(stage().outputNote||I18n.t("词表选择后的文字")):shape(stage().sinkDim)+(stage().outputNote?' · '+stage().outputNote:stage().attentionReadout&&stage().sinkDim===9?' · '+M.causalGuide.weightsNote:I18n.t(" · 各位置的特征"))}`,{},()=>new T.Vector3(stage().sinkX,(stage().sinkY||0)+1.6,-2.05));
   if(busy&&!stage().sequence){const marker=addLabel('span','row-marker',flowIdentity(),{'data-owner':'R','data-row':sample<3?String(sample):'validation'},()=>sample<3?new T.Vector3(stage().sourceX-1,.99,art.rowZ(sample)):new T.Vector3(stage().sourceX,1.4,2));marker.style.setProperty('--row-color',colorHex(art.rowColor(sample)));}
-  stage().sources.forEach(id=>addLabel('button','port '+(pending===id?'pending':''),(stage().sourcePorts?.[id]||(id==='R'&&stageId!=='ffn'?'X':id))+' · '+shape(stage().sourceDim||2),{'type':'button','data-output':id,'aria-label':message('{name} 的输出端口；形状：{shape}。',{name:outputName(id),shape:shape(stage().sourceDim||2)})},()=>point(id)));
+  stage().sources.forEach(id=>addLabel('button','port '+(pending===id?'pending':''),(stage().sourcePorts?.[id]||(id==='R'&&stageId!=='ffn'?'X':id))+' · '+shape(stage().sourceDim||2),{'type':'button','data-output':id,'aria-label':`${outputName(id)}${I18n.t(" 输出口，")}${shape(stage().sourceDim||2)}`},()=>point(id)));
   if(stageId==='ffn')addLabel('span','source-label','Z = RMSNorm(R)',{},()=>new T.Vector3(stage().sourceX,.65,2.55));
-  state.nodes.forEach(n=>{const d=definition(n.id);addLabel('button','node-label '+(selected===n.id?'selected ':''),nodeName(n.id),{'type':'button','data-node':n.id,'aria-label':message(stage().demonstration?'{name} 模块。双击查看说明。':busy?'{name} 模块。运行时无法移动。':'{name} 模块。拖动可调整位置，双击可查看说明。',{name:nodeName(n.id)})},()=>new T.Vector3(n.x,(n.y||0)+1.05,n.z-1.15));
-   if(stage().engine)addLabel('button','device-badge device-'+n.device+(busy&&current?.depths[n.id]===level?' processing':''),n.device.toUpperCase(),{'type':'button','data-assign':n.id,'data-owner':n.id,'aria-label':message('{name} 当前分配到 {device}。未运行时，选择模块后点击设备区域可重新分配。',{name:nodeName(n.id),device:n.device.toUpperCase()})},()=>new T.Vector3(n.x,1.9,n.z-.45));
-   d.ins.forEach((dim,i)=>addLabel('button','port input '+(n.links[i]?'connected ':''),n.id==='enattn'?'Q/K/V':moduleShape(M.nodeKind(n),dim),{'type':'button','data-input':`${n.id}:${i}`,'aria-label':message(n.links[i]?'{name} 的输入端口 {port}；形状：{shape}。已连接。':'{name} 的输入端口 {port}；形状：{shape}。未连接。',{name:nodeName(n.id),port:i+1,shape:moduleShape(M.nodeKind(n),dim)})},()=>point(n.id,'in',i)));
-   addLabel('button','port '+(pending===n.id?'pending':''),n.id==='enqkv'?'Q/K/V':moduleShape(M.nodeKind(n),d.out),{'type':'button','data-output':n.id,'aria-label':message('{name} 的输出端口；形状：{shape}。',{name:nodeName(n.id),shape:moduleShape(M.nodeKind(n),d.out)})},()=>point(n.id));
+  state.nodes.forEach(n=>{const d=definition(n.id);addLabel('button','node-label '+(selected===n.id?'selected ':''),nodeName(n.id),{'type':'button','data-node':n.id,'aria-label':`${nodeName(n.id)}${I18n.t(stage().demonstration?" 模块，双击查看":" 模块，拖动移动")}`},()=>new T.Vector3(n.x,(n.y||0)+1.05,n.z-1.15));
+   if(stage().engine)addLabel('button','device-badge device-'+n.device+(busy&&current?.depths[n.id]===level?' processing':''),n.device.toUpperCase(),{'type':'button','data-assign':n.id,'data-owner':n.id,'aria-label':definition(n.id).name+I18n.t(" 当前在 ")+n.device+I18n.t("，选择后点击芯片区域")},()=>new T.Vector3(n.x,1.9,n.z-.45));
+   d.ins.forEach((dim,i)=>addLabel('button','port input '+(n.links[i]?'connected ':''),n.id==='enattn'?'Q/K/V':moduleShape(M.nodeKind(n),dim),{'type':'button','data-input':`${n.id}:${i}`,'aria-label':`${nodeName(n.id)}${I18n.t(" 输入 ")}${i+1}，${moduleShape(M.nodeKind(n),dim)}${n.links[i]?I18n.t("，已连接"):''}`},()=>point(n.id,'in',i)));
+   addLabel('button','port '+(pending===n.id?'pending':''),n.id==='enqkv'?'Q/K/V':moduleShape(M.nodeKind(n),d.out),{'type':'button','data-output':n.id,'aria-label':`${nodeName(n.id)}${I18n.t(" 输出口，")}${moduleShape(M.nodeKind(n),d.out)}`},()=>point(n.id));
    if(busy&&current?.values[n.id]&&!stage().sequence&&(current.depths[n.id]||0)<=level&&fault?.id!==n.id)addLabel('span','node-value',`${flowIdentity()} · ${vector(current.values[n.id])}`,{'data-owner':n.id},()=>new T.Vector3(n.x,.5,n.z+1.45));
   });
-  addLabel('button','port input '+(state.sink?'connected ':''),String(shape(stage().sinkDim)),{'type':'button','data-input':'sink:0','aria-label':message(state.sink?'关卡出口；形状：{shape}。已连接。':'关卡出口；形状：{shape}。未连接。',{shape:shape(stage().sinkDim)})},()=>point('sink'));
+  addLabel('button','port input '+(state.sink?'connected ':''),String(shape(stage().sinkDim)),{'type':'button','data-input':'sink:0','aria-label':`${I18n.t("本层输出入口，")}${shape(stage().sinkDim)}${state.sink?I18n.t("，已连接"):''}`},()=>point('sink'));
   if(busy&&current?.output&&level===99&&!fault&&!stage().sequence)addLabel('span','node-value',vector(current.output),{},()=>new T.Vector3(stage().sinkX,.6,1.6));
   if(fault){
    const issue=current?.componentIssue,owner=issue?.id||'sink',pos=()=>point(owner),comparison=comparisonValues(fault.actual,fault.expected,stage().engine?(stage().limits?.error||.06):1e-9);
-   const tokenText=stage().tokenOutput?`${I18n.t("<p class=\"token-verdict\">实际：")}${fault.actual?M.readTokens(fault.actual):I18n.t("未得到输出")}${I18n.t("<br>目标：")}${M.readTokens(fault.expected)}</p>`:'';
-   const content=issue?`<button type="button" class="fault-close" data-dismiss-result aria-label="${I18n.t('关闭结果提示')}">×</button><strong>${I18n.t('模块用途不匹配')}</strong><p>${issue.message}</p>`:`${I18n.t("<button type=\"button\" class=\"fault-close\" data-dismiss-result aria-label=\"关闭结果提示\" title=\"关闭结果提示\">×</button><strong>最终结果 · ")}${sample<3&&!stage().sequence?I18n.t("位置 ")+sample+I18n.t("（输入“")+samples()[sample].word+'”）':samples()[sample].word}</strong>${tokenText}${I18n.t("<div><span>你的结果</span><b>")}${comparison.actual}${I18n.t("</b></div><div class=\"expected\"><span>预期结果</span><b>")}${comparison.expected}</b></div>${comparison.expanded?'<p class="fault-precision-note">'+I18n.t('此处显示更多小数；棋盘上的数字已四舍五入。')+'</p>':''}`;
+   const tokenText=stage().tokenOutput?`${I18n.t("<p class=\"token-verdict\">实际：")}${fault.actual?M.readTokens(fault.actual):I18n.t("未输出")}${I18n.t("<br>目标：")}${M.readTokens(fault.expected)}</p>`:'';
+   const content=issue?`<button type="button" class="fault-close" data-dismiss-result aria-label="${I18n.t('关闭结果提示')}">×</button><strong>${I18n.t('组件用途不匹配')}</strong><p>${issue.message}</p>`:`${I18n.t("<button type=\"button\" class=\"fault-close\" data-dismiss-result aria-label=\"关闭结果提示\" title=\"关闭结果提示\">×</button><strong>最终结果 · ")}${sample<3&&!stage().sequence?I18n.t("位置 ")+sample+I18n.t("（输入“")+samples()[sample].word+'”）':samples()[sample].word}</strong>${tokenText}${I18n.t("<div><span>你的结果</span><b>")}${comparison.actual}${I18n.t("</b></div><div class=\"expected\"><span>预期结果</span><b>")}${comparison.expected}</b></div>${comparison.expanded?'<p class="fault-precision-note">'+I18n.t('此处显示更多小数；棋盘上的数字已四舍五入。')+'</p>':''}`;
    addLabel('span','fault-pin','!',{'data-owner':owner,'aria-hidden':'true'},pos);
    addLabel('div','local-fault',content,{'data-owner':owner,'role':'status'},pos);
   }
@@ -634,7 +629,7 @@ try{
  function syncWireTargets(w,h){
   if(wireTargets.parentNode!==overlay)overlay.prepend(wireTargets);wireTargets.style.display=stage().demonstration||busy||focusId||placing||pending?'none':'';wireTargets.setAttribute('viewBox',`0 0 ${w} ${h}`);if(stage().demonstration)return;
   const key=I18n.language()+curves.map(c=>`${c.from}:${c.to}:${c.index}`).join('|');
-  if(key!==wireTargetKey){wireTargetKey=key;wireTargets.replaceChildren();wirePaths=curves.map(edge=>{const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('tabindex','0');path.setAttribute('role','button');path.setAttribute('aria-label',message('选择连线：{from} → {to}。',{from:outputName(edge.from),to:edge.to==='sink'?stage().outputTitle:nodeName(edge.to)}));path.dataset.wireTo=edge.to;path.dataset.wirePort=String(edge.index);path.addEventListener('click',()=>chooseWire(edge.to,edge.index));path.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();chooseWire(edge.to,edge.index);}});wireTargets.appendChild(path);return path;});}
+  if(key!==wireTargetKey){wireTargetKey=key;wireTargets.replaceChildren();wirePaths=curves.map(edge=>{const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('tabindex','0');path.setAttribute('role','button');path.setAttribute('aria-label',outputName(edge.from)+' → '+(edge.to==='sink'?stage().outputTitle:nodeName(edge.to))+I18n.t("，选择连线"));path.dataset.wireTo=edge.to;path.dataset.wirePort=String(edge.index);path.addEventListener('click',()=>chooseWire(edge.to,edge.index));path.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();chooseWire(edge.to,edge.index);}});wireTargets.appendChild(path);return path;});}
   curves.forEach((edge,i)=>{wirePaths[i].setAttribute('d',edge.curve.getPoints(32).map((p,j)=>{const [x,y]=project(p);return `${j?'L':'M'}${x.toFixed(1)} ${y.toFixed(1)}`;}).join(' '));wirePaths[i].classList.toggle('selected',!!selectedWire&&edge.to===selectedWire.to&&edge.index===selectedWire.index);});
  }
  function syncConnectionGuide(w,h){
@@ -762,7 +757,7 @@ try{
  function focus(id){
   const n=state.nodes.find(n=>n.id===id);if(!n)return;if(shelfFocus)leaveFocus();if(!focusId)overview={target:cameraTarget.clone(),zoom,yaw,pitch};focusId=id;selected=id;pending=placing=actionNode=null;clearPreview();clearPlacement();
   document.body.classList.add('module-focused');openModuleCard(id);
-  $('#scene-help').textContent=I18n.t("模块说明 · 拖动旋转 · 滚轮缩放 · Esc 返回");
+  $('#scene-help').textContent=I18n.t("近看模式 · 拖动旋转 · 滚轮缩放 · Esc 返回");
   assembly.children.forEach(g=>g.visible=g.userData.node===id);wires.visible=false;art.focus(true);labels();renderShelf();
   const width=Math.max(4.1,3.5*host.clientWidth/host.clientHeight);transition(new T.Vector3(n.x,(n.y||0)+.7,n.z),width/23,.32,.92);
  }
@@ -781,9 +776,9 @@ try{
   const cardStageId=M.exampleLevel(kind,stageId),cardStage=M.levels[cardStageId];
   const c=cardFor(kind,cardStageId)||M.extraCard(kind,cardStageId),d=M.definitions[kind],card=$('#module-card'),outputProjection=['output','original-output'].includes(kind);
   $('#card-attention-flow').hidden=d.type!=='mix'&&!outputProjection;$('#card-attention-flow').replaceChildren();
-  $('.card-example>small').textContent=d.type==='mix'?M.aggregateGuide.rounding:I18n.t('按参考计算展示 · 数值已四舍五入');
+  $('.card-example>small').textContent=d.type==='mix'?M.aggregateGuide.rounding:I18n.t('按正确计算路径演算 · 显示数值已四舍五入');
   card.style.setProperty('--card-accent',c.color);$('.card-example-title').firstChild.textContent=cardStage.sequence?I18n.t("用三个输入位置看一次"):I18n.t("用“猫”的向量看一次");
-  $('#card-purpose-title').textContent=I18n.t(cardStageId==='autoregressive'?'它在生成循环中的作用':'本关用途');
+  $('#card-purpose-title').textContent=I18n.t(cardStageId==='autoregressive'?'它在生成循环中的作用':'它在这一层的作用');
   const origin=M.packageOrigin(kind);
   for(const [field,value]of Object.entries({name,seal:c.seal,english:c.english,family:c.family,number:origin?I18n.t('来源：')+origin.chapter:stage().chapter,ability:c.ability,meaning:c.meaning,formula:c.formula,purpose:M.componentUse(kind)||c.purpose}))$('#card-'+field).textContent=value;
   if(origin)$('#card-number').dataset.originLevel=origin.id;else delete $('#card-number').dataset.originLevel;
@@ -855,7 +850,7 @@ try{
    contrast.innerHTML=`<b>${I18n.t('用同两组数比较：')}</b><code>A = ${vector(a)}　B = ${vector(b)}</code><div class="merge-compare-row ${d.type==='multiply'?'current':''}" data-operation="multiply"><strong>×</strong><span><code>A ⊙ B = ${vector(product)}</code><small>${I18n.t('逐项调节强弱；乘以 1 保持原值。')}</small></span></div><div class="merge-compare-row ${d.type!=='multiply'?'current':''}" data-operation="add"><strong>+</strong><span><code>A + B = ${vector(sum)}</code><small>${I18n.t('在原值上增加或减少；加上 0 保持原值。')}</small></span></div><small>${I18n.t('这里只比较运算：门控中 B 是调节系数，残差中 B 是修改量。')}</small>`;
   }
   $('.card-path').hidden=!!cardStage.demonstration;
-  $('#card-return').innerHTML=I18n.t(cardStage.demonstration?'收起卡片，继续查看 ↗':'返回工作台 ↗');
+  $('#card-return').innerHTML=I18n.t(cardStage.demonstration?'收起卡片，继续查看 ↗':'收起卡片，继续搭建 ↗');
   $('.card-path>span').textContent=cardStage.title;
   $('#card-path').innerHTML=(cardStageId==='ffn'?[I18n.t("双路投影"),'SiLU',I18n.t("门控"),I18n.t("降维"),I18n.t("残差")]:cardStage.nodes.map(k=>M.definitions[k].name)).map((label,i)=>`${i?'<i>›</i>':''}<span class="${(cardStageId==='ffn'?i===c.stage:cardStage.nodes[i]===kind)?'active':''}">${label}</span>`).join('');
   host.setAttribute('aria-label',I18n.t("拖动旋转模块，滚轮缩放"));$('#card-portrait').append(host,overlay);if(!card.open)card.showModal();
@@ -869,8 +864,8 @@ try{
   cameraTarget.copy(previous?.target||new T.Vector3());zoom=previous?.zoom??stage().zoom;yaw=previous?.yaw??.05;pitch=previous?.pitch??.8;
   host.setAttribute('aria-busy','false');
   focusId=null;shelfFocus=null;pending=null;clearPreview();if(shelfModel){scene.remove(shelfModel);dispose(shelfModel);shelfModel=null;}if(returnShelf)selected=returnShelf.selected;
-  document.body.classList.remove('module-focused');$('.arena').prepend(host,overlay);host.setAttribute('aria-label',I18n.t(stage().floating?"拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放":stage().demonstration?"拖动旋转视角 · 双击查看基础模块":"拖动空白区域旋转视角。未运行时可拖动模块调整位置。"));$('#module-card').close();
-  $('#scene-help').textContent=I18n.t(stage().floating?"拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放":stage().demonstration?"拖动旋转视角 · 双击查看基础模块":"拖动模块调整位置 · 选中连线后点击删除连线 · 双击模块查看说明");assembly.visible=true;assembly.children.forEach(g=>g.visible=true);wires.visible=true;art.focus(false);labels();renderShelf();
+  document.body.classList.remove('module-focused');$('.arena').prepend(host,overlay);host.setAttribute('aria-label',I18n.t(stage().floating?"拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放":stage().demonstration?"拖动转动视角 · 双击查看基础组件":"拖动空白转动视角，拖动模块重新摆放"));$('#module-card').close();
+  $('#scene-help').textContent=I18n.t(stage().floating?"拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放":stage().demonstration?"拖动转动视角 · 双击查看基础组件":"拖模块摆放 · 点连线删除 · 双击查看模块卡");assembly.visible=true;assembly.children.forEach(g=>g.visible=true);wires.visible=true;art.focus(false);labels();renderShelf();
   $(returnShelf?'[data-add-module="'+returnShelf.kind+'"]':'[data-node="'+selected+'"]')?.focus({preventScroll:true});
  }
  function nodeTap(id,e){const now=performance.now();if(lastTap?.id===id&&now-lastTap.time<380&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<10){lastTap=null;focus(id);}else{lastTap={id,time:now,x:e.clientX,y:e.clientY};select(id);}}
@@ -1345,7 +1340,7 @@ try{
  $('#module-palette').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-add-module]');if(!b||b.dataset.addDisabled==='true'||busy||focusId)return;e.preventDefault();chooseModule(b.dataset.addModule);drag={kind:'palette',id:placing,x:e.clientX,y:e.clientY,moved:false};});
  $('#module-shelf').addEventListener('toggle',()=>{const shelf=$('#module-shelf');shelf.querySelector('summary').title=shelf.hasAttribute('open')?I18n.t('收起组件架'):I18n.t('展开组件架');render();});
  document.addEventListener('pointermove',e=>{if(placing)previewPlacement(e.clientX,e.clientY);if(!drag||(busy&&drag.kind!=='camera'))return;if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>5)drag.moved=true;if(!drag.moved)return;if(drag.kind==='wire'){pending=drag.id;previewAt(e.clientX,e.clientY);}if(drag.kind==='node'){const p=worldPoint(e.clientX,e.clientY),n=state.nodes.find(n=>n.id===drag.id);if(p){const b=M.bounds(stage());n.x=Math.max(b.left,Math.min(b.right,p.x+drag.offset[0]));n.z=Math.max(b.back,Math.min(b.front,p.z+drag.offset[1]));rebuild();}}if(drag.kind==='camera'){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(drag.pan){cameraTarget.copy(drag.target).addScaledVector(drag.right,-dx*drag.units).addScaledVector(drag.up,dy*drag.units);}else{yaw=stage().floating?drag.yaw-dx*.005:Math.max(-.65,Math.min(.65,drag.yaw-dx*.003));pitch=Math.max(stage().floating?-1.4:.4,Math.min(stage().floating?1.4:1.35,drag.pitch+dy*.004));}render();}});
- document.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(d.inspect&&!d.moved&&!busy){nodeTap(d.inspect,e);return;}if(busy&&d.kind!=='camera')return;if(d.kind==='palette'){if(d.moved){suppressPaletteClick=true;setTimeout(()=>suppressPaletteClick=false,0);const rect=host.getBoundingClientRect();if(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom){const p=worldPoint(e.clientX,e.clientY);if(p)placeModule(p.x,p.z);}placing=null;clearPlacement();labels();}return;}if(d.kind==='device'){const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-device]');if(target)assignDevice(d.id,target.dataset.device);return;}if(d.kind==='wire'&&d.moved){d.el.dataset.suppress='true';setTimeout(()=>delete d.el.dataset.suppress,0);const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-input]');clearPreview();if(target){const [to,i]=target.dataset.input.split(':');link(d.id,to,Number(i));}else{pending=d.id;labels();say(I18n.t("选择方形输入端口以完成连接。"));}}if(d.kind==='node'&&d.moved){suppressNodeClick=true;setTimeout(()=>suppressNodeClick=false,0);history.push(d.old);save();refresh();labels();}if(d.kind==='node'&&!d.moved){nodeTap(d.id,e);labels();}});
+ document.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(d.inspect&&!d.moved&&!busy){nodeTap(d.inspect,e);return;}if(busy&&d.kind!=='camera')return;if(d.kind==='palette'){if(d.moved){suppressPaletteClick=true;setTimeout(()=>suppressPaletteClick=false,0);const rect=host.getBoundingClientRect();if(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom){const p=worldPoint(e.clientX,e.clientY);if(p)placeModule(p.x,p.z);}placing=null;clearPlacement();labels();}return;}if(d.kind==='device'){const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-device]');if(target)assignDevice(d.id,target.dataset.device);return;}if(d.kind==='wire'&&d.moved){d.el.dataset.suppress='true';setTimeout(()=>delete d.el.dataset.suppress,0);const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-input]');clearPreview();if(target){const [to,i]=target.dataset.input.split(':');link(d.id,to,Number(i));}else{pending=d.id;labels();say(I18n.t("继续点一个方形输入口，完成这条线。"));}}if(d.kind==='node'&&d.moved){suppressNodeClick=true;setTimeout(()=>suppressNodeClick=false,0);history.push(d.old);save();refresh();labels();}if(d.kind==='node'&&!d.moved){nodeTap(d.id,e);labels();}});
  document.addEventListener('pointercancel',()=>{drag=null;pending=placing=null;clearConnectionError();clearPreview();clearPlacement();labels();});
  function viewPlanePoint(x,y){const rect=host.getBoundingClientRect();ray.setFromCamera(new T.Vector2((x-rect.left)/rect.width*2-1,-((y-rect.top)/rect.height)*2+1),camera);return ray.ray.intersectPlane(new T.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new T.Vector3()),cameraTarget),new T.Vector3());}
  function zoomCamera(e){e.preventDefault();if(transitioning)return;if(stage().floating&&!focusId)setFollow(false);const anchor=stage().floating&&!focusId?viewPlanePoint(e.clientX,e.clientY):null;zoom=Math.max(focusId?.13:stage().floating?.18:.45,Math.min(focusId?.7:overviewZoomLimit()*2,zoom+e.deltaY*(focusId?.00028:.0008)));render();if(anchor){const after=viewPlanePoint(e.clientX,e.clientY);if(after){cameraTarget.add(anchor.sub(after));render();}}}
@@ -1363,4 +1358,4 @@ try{
  function setStage(){followSeed=null;followZoom=null;setFollow(!!stage().floating);cameraPan=false;$('#demo-pan').setAttribute('aria-pressed','false');art.surroundings(samples(),stage(),scenePalette());yaw=.05;pitch=.8;zoom=stage().zoom;cameraTarget.set(0,0,0);rebuild();}
  function relocalize(){clearConnectionError();art.surroundings(samples(),stage(),scenePalette());rebuild();packets.forEach(p=>{p.el.querySelector('.packet-title').textContent=p.motion==='feedback'?I18n.t('接回输入'):packetIdentity(p.el.dataset.from);if(p.sequenceProjection)p.updateEquation(p.column,p.projectionRow);if(p.motion==='wire'&&(definition(p.el.dataset.from)?.type==='pick'||kindOf(p.el.dataset.from)==='feedback'))p.cells.textContent=M.readTokens(p.values);if(p.appending){p.cells.textContent=M.readTokens(p.input);p.after.textContent=M.readTokens(p.output);}if(p.selection&&p.progress!=null){p.after.textContent=M.readTokens(p.output);p.updateSelection(art.selectionFrame(p.progress,p.input.length/p.output.length,p.output.length));p.outputLabels.forEach(({el},j)=>el.textContent=M.math.vocab[p.output[j]]);}if(p.normalizing&&p.progress!=null)p.updateRMS(normalizationFrame(p.progress,p.centering));if(p.tokenOperation&&p.progress!=null)p.updateToken(art.tokenFrame(p.progress,p.tokenOperation));if(p.motion==='process'&&p.progress!=null)art.processing(p.node.id,p.progress,p.input,p.output,p.color,{sequence:!!stage().sequence,detailed:p.detailed,paired:p.paired,other:p.other,words:p.words?.(),valueWords:p.valueWords?.()});});render();}
  new ResizeObserver(render).observe(host);world={relocalize,labels,rebuild,animate,feedback,finishDemo,fuse,skipFusion:()=>finishFusion(true),clearPackets,showConnectionError,showPlacementError,clearConnectionError,clearPreview,clearPlacement,previewAt,previewPlacement,focus,focusShelf,focused:()=>focusId,beforeStage,setStage,syncShelf:()=>syncPlacementGuide(host.clientWidth,host.clientHeight)};$('#loading').hidden=true;rebuild();refresh();
-}catch(e){$('#loading').innerHTML=I18n.t("<strong>3D 台面没有加载成功，请刷新重试。</strong>");say(I18n.t("工作台加载失败。请刷新页面重试。"),'error');console.error(e);}
+}catch(e){$('#loading').innerHTML=I18n.t("<strong>3D 台面没有加载成功，请刷新重试。</strong>");say(I18n.t("页面尚未开始运行。"),'error');console.error(e);}

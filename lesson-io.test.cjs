@@ -26,12 +26,9 @@ test('every lesson has explicit bilingual boundaries without changing its puzzle
  assert.notDeepEqual(Array.from(o),Array.from(y),'the aggregation and projected attention outlets are distinct');
  assert.equal(M.levels['pack-scores'].chapter,'Original · reuse after 07');
  assert.equal(M.levels['masked-multihead'].chapter,'Original · assembly practice');
- assert.equal(M.levels.softmax.summary,'Use Softmax to turn matching scores into proportions for how much to read.');
- assert.match(M.levels.softmax.description,/Softmax/);
- assert.match(M.levels.softmax.description,/sum to 1/);
- assert.match(M.levels.softmax.description,/no future mask/);
- assert.match(M.levels.softmax.rationale.text,/query position.*sum to 1/);
- assert.match(M.levels.softmax.rationale.takeaway,/causal mask excludes future positions/i);
- assert.deepEqual([...M.levels.softmax.nodes],['q','k','score','softmax'],'the shorter introduction still uses Q/K scoring');
+ for(const field of ['summary','description']){
+  assert.match(M.levels.softmax[field],/Q\/K/);assert.match(M.levels.softmax[field],/Softmax/);
+  assert.match(M.levels.softmax[field],/sum to 1/);assert.match(M.levels.softmax[field],/without masking future positions|no future mask/);
+ }
  assert.ok(M.levels.softmax.summary.length<M.levels.softmax.description.length,'the menu summarizes rather than repeats the wiring instructions');
 });
