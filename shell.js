@@ -3,7 +3,7 @@
   const $=s=>document.querySelector(s),settings=$('#settings'),welcome=$('#welcome'),audioKey='neural-atelier-audio-v1';
   let options={enabled:true,volume:.35},leaving=false,enterVersion=0;
   try{const saved=JSON.parse(scope.localStorage?.getItem(audioKey));if(typeof saved?.enabled==='boolean')options.enabled=saved.enabled;if(Number.isFinite(saved?.volume))options.volume=Math.max(0,Math.min(1,saved.volume));}catch{}
-  const unavailable=()=>{$('#audio-status').hidden=false;$('#audio-status').textContent=I18n.t('浏览器无法播放背景音乐。你仍可继续游戏。');};
+  const unavailable=()=>{$('#audio-status').hidden=false;$('#audio-status').textContent=I18n.t('这个浏览器暂时无法播放音乐。');};
   const music=scope.createAtelierMusic?.({...options,onUnavailable:unavailable});
   const persist=()=>{try{scope.localStorage?.setItem(audioKey,JSON.stringify(options));}catch{}};
   function sync(){

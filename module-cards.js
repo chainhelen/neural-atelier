@@ -3,7 +3,7 @@ export const moduleCards = {
   norm: {
     number:'',seal:'r',english:'RMS NORMALIZATION',family:I18n.t('归一化'),color:'#9a813d',
     ability:I18n.t('同一组特征，除以同一个均方根'),formula:'r = √(mean(X²) + ε); Zᵢ = (Xᵢ / r) · γᵢ',
-    meaning:I18n.t('将一个 token 的各个特征平方并求平均，加上 ε 后开平方，得到尺度 r。各特征都除以这个 r；其他 token 分别计算自己的 r。'),
+    meaning:I18n.t('先把一个 token 的各个特征平方、求平均，再开平方，得到它自己的尺度 r。随后各特征都除以这个 r；另一个 token 单独算自己的 r。'),
     purpose:I18n.t('它调整整体数值尺度，不把各个特征变成同一个数，也不减去均值。本例 γ 全为 1，缩放后仍保留原来的正负与特征间比例；真实模型还会学习每个特征的 γ。'),
     weight:'γ = 1',trait:I18n.t('逐个 token 缩放'),stage:0
   },
@@ -16,36 +16,36 @@ export const moduleCards = {
   },
   gate: {
     number:'01', seal:I18n.t("门"), english:'GATE PROJECTION', family:I18n.t("投影"), color:'#75628e',
-    ability:I18n.t("计算门分支的四个特征"), formula:'G = Z × Wg',
+    ability:I18n.t("为内容准备调节系数"), formula:'G = Z × Wg',
     meaning:I18n.t("门投影也做矩阵乘法，但权重 Wg 与线性投影的 W 不同。同一份输入乘 W 得到内容特征 U，乘 Wg 得到 G，供 SiLU 计算调节系数。"),
     purpose:I18n.t("G 还要经过 SiLU，才得到系数 S；S 与 U 的对应位置相乘，形成 H。系数随输入变化，可以缩小、放大或改变特征的符号。"),
     input:I18n.t("归一化输入 Z"), output:I18n.t("门分支 G"), weight:'2 × 4', trait:I18n.t("线性变换"), stage:0
   },
   silu: {
     number:'03', seal:I18n.t("启"), english:'SiLU ACTIVATION', family:I18n.t("激活"), color:'#a8793b',
-    ability:I18n.t("让不同的数按不同的比例缩放"), formula:'S = SiLU(G)',
-    meaning:I18n.t("门投影送来一组数 G，SiLU 分别处理每个数，得到 S。这叫“逐项激活”：数值经过非线性变换，特征数量不变。SiLU(x) = x · sigmoid(x)，缩放比例由 x 自己决定。"),
-    purpose:I18n.t("SiLU 将绝对值较大的负数压近 0，较大的正数则接近原值。输出 S 与内容特征 U 逐项相乘，调节各个特征。S 仍可以为负，也可以超过 1。"),
+    ability:I18n.t("把输入 G 算成输出 S"), formula:'S = SiLU(G)',
+    meaning:I18n.t("SiLU 是函数名。G 是门投影算出的输入向量，S 是经过 SiLU 后的输出向量。G 中的每个数各算一次，得到 S 中对应的数。"),
+    purpose:I18n.t("SiLU 会把较大的负数压近 0，较大的正数则接近原值。输出 S 接着与内容特征 U 相乘，成为逐项调节特征的系数。S 仍可以为负，也可以超过 1。"),
     input:I18n.t("门分支 G"), output:I18n.t("激活后的门值 S"), weight:I18n.t("无"), trait:I18n.t("逐项非线性"), stage:1
   },
   multiply: {
     number:'04', seal:I18n.t("合"), english:'ELEMENTWISE GATING', family:I18n.t("门控"), color:'#3e8078',
-    ability:I18n.t("将门值与内容逐项相乘"), formula:'Hᵢ = Sᵢ × Uᵢ',
+    ability:I18n.t("让门值作用于内容"), formula:'Hᵢ = Sᵢ × Uᵢ',
     meaning:I18n.t("把两个向量的对应特征配对：第 1 个乘第 1 个，第 2 个乘第 2 个。4 对乘积组成新的 4 维向量 H。"),
     purpose:I18n.t("U 给出内容特征，S 根据当前输入调节各项的贡献。两者来自同一个 token 的不同投影；这里不汇合不同 token。之后的降维投影才把各项乘积加权组合。S = 1 保持原值，S = 0 消去这一项。"),
     input:I18n.t("门值 S 与内容 U"), output:I18n.t("门控结果 H"), weight:I18n.t("无"), trait:I18n.t("对应位置相乘"), stage:2
   },
   down: {
     number:'05', seal:I18n.t("归"), english:'DOWN PROJECTION', family:I18n.t("投影"), color:'#637e63',
-    ability:I18n.t("将四个特征投影为两个"), formula:'F = H × Wd',
-    meaning:I18n.t("H 表示本模块接收的 4 个特征。将 H 乘上 4 × 2 权重矩阵，每个输出由 4 项乘积求和，得到 2 维结果 F；输入不一定来自门控。"),
+    ability:I18n.t("汇成两维变换"), formula:'F = H × Wd',
+    meaning:I18n.t("把门控后的 4 个特征乘上 4 × 2 权重矩阵。每个输出都由 4 项乘积求和，最终得到 2 维的 FFN 变换 F。"),
     purpose:I18n.t("把扩展后的特征组合回原宽度。F 与最初的输入 R 都是 2 维，下一步才能按对应位置相加。"),
-    input:I18n.t("输入特征 H"), output:I18n.t("FFN 变换 F"), weight:'4 × 2', trait:I18n.t("线性变换"), stage:3
+    input:I18n.t("门控结果 H"), output:I18n.t("FFN 变换 F"), weight:'4 × 2', trait:I18n.t("线性变换"), stage:3
   },
   add: {
     number:'06', seal:I18n.t("续"), english:'RESIDUAL ADDITION', family:I18n.t("残差"), color:'#a17949',
     ability:I18n.t("把变化加回原输入"), formula:'Y = R + F',
-    meaning:I18n.t("最初的输入 R 走直连路径，FFN 支路算出修改量 F。把它们对应相加得到 Y，这就是“残差连接”。正的修改量让数值增加，负的让它减少。"),
+    meaning:I18n.t("R 是进入 FFN 前的特征，F 是支路算出的修改量。对应位置相加得到 Y：正的修改量让数值增加，负的让它减少。"),
     purpose:I18n.t("支路可以学习需要改动的部分。无需修改的位置只要输出 0，原值就能通过直连路径继续传递；不必让支路再学一遍如何复制原值。相加也可能抵消数值，因此并不保证原信息完整保留。"),
     input:I18n.t("原始输入 R 与变换 F"), output:I18n.t("本层输出 Y"), weight:I18n.t("无"), trait:I18n.t("对应位置相加"), stage:4
   }
@@ -58,9 +58,9 @@ export function cardFor(id,levelId){
  if(!moduleCards[id])return null;
  const card={...moduleCards[id]};
  if(id==='project'&&['gating','swiglu','ffn'].includes(levelId)){
-  Object.assign(card,{ability:I18n.t("用线性投影计算内容特征 U"),formula:'U = Z × W',input:I18n.t("归一化输入 Z"),output:I18n.t("内容特征 U"),stage:0,
+  Object.assign(card,{ability:I18n.t("用熟悉的投影产生内容特征"),formula:'U = Z × W',input:I18n.t("归一化输入 Z"),output:I18n.t("内容特征 U"),stage:0,
    meaning:I18n.t("这就是序章的线性投影，仍用同一套权重 W 做矩阵乘法。这里把输出叫 U，表示待调节的内容特征；门投影使用另一套权重 Wg，产生 G。"),
-   purpose:I18n.t("“内容”描述它在这条支路的用途，运算仍是线性投影。门分支经 SiLU 得到系数 S，再与 U 逐项相乘；同一个内容值可被缩小、放大或改变符号，取决于当前输入产生的系数。")});
+   purpose:I18n.t("“内容”描述它在这条支路的用途，运算仍是线性投影。门分支经 SiLU 得到系数 S，再与 U 逐项相乘；同一个内容值会随输入产生的系数而减弱或放大。")});
  }
  if(levelId==='ffn'){
   if(id==='gate'||id==='project')card.meaning=I18n.t("输入先归一化为 Z。")+' '+card.meaning;
@@ -71,13 +71,13 @@ export function cardFor(id,levelId){
   card.input=I18n.t("输入 X");
  }
  if(id==='silu'&&['activation','plain-ffn'].includes(levelId)){
-  card.ability=I18n.t("改变数值，保留四个特征");card.formula='S = SiLU(P)';
+  card.ability=I18n.t("把输入 P 算成输出 S");card.formula='S = SiLU(P)';
   card.input=I18n.t("投影结果 P");card.output=I18n.t("激活特征 S");
-  card.meaning=I18n.t("投影模块送来四个数 P，SiLU 分别处理它们，得到四个数 S。这叫“逐项激活”：对每个数应用同一个激活函数，向量的维度保持不变。");
-  card.purpose=I18n.t("SiLU(x) = x · sigmoid(x)。它不是把所有数乘同一个固定比例，而是让比例随数值变化，所以叫“非线性变换”。绝对值较大的负数被压近 0，较大的正数接近原值。对照上面的输入和输出，可以看到特征之间的数值关系如何改变。");
+  card.meaning=I18n.t("SiLU 是函数名。P 是线性投影算出的输入向量，S 是经过 SiLU 后的输出向量。P 中的每个数各算一次，得到 S 中对应的数。");
+  card.purpose=I18n.t("乘一个固定比例会把所有数一起缩放；SiLU 的缩放比例随数值变化。较大的负数被压近 0，较大的正数接近原值，因此它能改变特征之间的数值关系。");
  }
  if(id==='down'&&levelId==='down-projection'){
-  card.formula='F = P × Wd';card.input=I18n.t("投影结果 P");card.meaning=I18n.t("将投影 P 中的 4 个数乘上 4 × 2 权重矩阵。每个输出由 4 项乘积求和，得到 2 维变换 F。");card.purpose=I18n.t("降维仍是加权求和，四个特征都可以影响每个输出。它把特征宽度变回 2，方便后续模块继续使用。");
+  card.formula='F = P × Wd';card.input=I18n.t("投影结果 P");card.meaning=I18n.t("接过投影 P 中的 4 个数，乘上 4 × 2 权重矩阵。每个输出由 4 项乘积求和，得到 2 维变换 F。");card.purpose=I18n.t("降维仍是加权求和，四个特征都可以影响每个输出。它把特征宽度变回 2，方便后续模块继续使用。");
  }
  if(id==='down'&&levelId==='plain-ffn'){
   card.formula='F = S × Wd';card.input=I18n.t("激活特征 S");card.meaning=I18n.t("SiLU 已把投影结果 P 变成 S。降维投影接收这四个激活特征，各做一次四项加权求和，输出两个特征 F。");card.purpose=I18n.t("前面先展开并激活，这里再回到原宽度，组成单支路 FFN。这个输出还没有加回原输入。");
