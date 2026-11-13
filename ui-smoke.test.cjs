@@ -477,12 +477,13 @@ test('invalid fragments fall back safely and changing a fragment stops an active
 
 test('chapter back button opens the current route and stage even from a direct lesson link',()=>{
  const fixture=boot(),M=fixture.c.NeuralPrologue;
- for(const id of ['wire','encoder-layer',...Object.values(M.routes).map(route=>route.ids.at(-1))]){
+ for(const id of ['wire','encoder-layer','decoder-layer',...Object.values(M.routes).map(route=>route.ids.at(-1))]){
   const app=boot(new Map(),'#'+id),doc=app.document,button=doc.querySelector('.chapter #levels-open'),level=M.levels[id],group=M.routes[level.track].groups?.find(group=>group.ids.includes(id));
   assert.equal(button.tagName,'BUTTON');assert.equal(button.getAttribute('type'),'button');assert.equal(button.getAttribute('aria-controls'),'level-menu');assert.equal(button.getAttribute('aria-label'),'返回关卡选择');assert.equal(button.querySelector('span').textContent,level.chapter);assert.equal(doc.querySelectorAll('#levels-open').length,1);
   app.eval('checkpoint();window.board=state;window.undoStack=history');const before=app.eval('JSON.stringify(state)');
   button.click();assert.equal(doc.body.dataset.screen,'levels');assert.equal(doc.querySelector('#level-menu').open,true);
   assert.equal(app.location.hash,'#menu?lesson='+id+'&track='+level.track+(group?'&group='+group.id:'')+'&from=game');assert.equal(doc.querySelector('#level-tracks [aria-selected=true]').dataset.track,level.track);assert.equal(doc.querySelector('#level-stage-nav [aria-current]')?.dataset.levelGroupTarget,group?'level-group-'+level.track+'-'+group.id:undefined);assert.equal(doc.querySelector('#level-list [aria-current]').dataset.level,id);
+  assert.equal(doc.querySelector('#chapter-summary').textContent,doc.querySelector('#level-list [aria-current] > span:last-child').textContent);
   const menuHash=app.location.hash,reload=boot(new Map(app.storage),menuHash);assert.equal(reload.document.body.dataset.screen,'levels');assert.equal(reload.location.hash,menuHash);
   app.navigation.back();assert.equal(app.location.hash,'#'+id);assert.equal(doc.body.dataset.screen,'game');app.navigation.forward();assert.equal(app.location.hash,menuHash);
   let focused=false;button.focus=()=>focused=true;doc.querySelector('#levels-close').click();assert.equal(app.location.hash,'#'+id);assert.equal(focused,true);assert.equal(app.eval('state===window.board&&history===window.undoStack'),true);assert.equal(app.eval('JSON.stringify(state)'),before);

@@ -449,7 +449,11 @@ body[data-screen=levels] #level-menu::backdrop{background:linear-gradient(#54785
 /* Menu focus stays on the button edge, clear of sticky headings and clipping. */
 #level-menu button:focus-visible{outline:2px solid var(--group-accent,var(--teal));outline-offset:-2px}
 .mission{background:var(--paper);padding:18px;border:1px solid var(--line)}.mission>p{font-size:13px;line-height:1.7}.mission-progress{padding-top:12px;border-top:1px solid var(--line)}.mission-progress span:first-child{font-size:18px}
-.topbar{gap:16px}.chapter{min-width:0}.chapter strong{font-size:14px}.topbar>button{flex-shrink:0}.route{flex-wrap:wrap;row-gap:5px}
+.topbar{gap:16px}.chapter{min-width:0}.chapter strong{font-size:14px}.topbar>button{flex-shrink:0}
+.chapter-copy{min-width:0;max-width:54ch}
+#chapter-summary{margin:3px 0 0;color:#536761;font-size:12px;line-height:1.5;overflow-wrap:break-word}
+#chapter-summary:empty{display:none}
+.route{flex-wrap:wrap;row-gap:5px}
 #levels-open{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;padding:6px 8px;margin-left:-8px;background:transparent;border-color:transparent;color:var(--group-accent,var(--teal));font-size:11px;white-space:nowrap}#levels-open span{color:inherit}#levels-open i{font-size:15px;font-style:normal}#levels-open:hover{border-color:var(--group-accent,var(--teal));background:var(--paper)}#levels-open:focus-visible{outline:2px solid var(--group-accent,var(--teal));outline-offset:2px}
 @media(min-width:1080px){body{min-width:0}}
 body:not(.demo-level) .source-label{width:max-content;max-width:min(205px,42%);white-space:normal}

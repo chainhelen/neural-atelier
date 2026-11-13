@@ -229,6 +229,7 @@ function stageChrome(){
  $('#scene').setAttribute('aria-label',I18n.t(c.floating?'拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放':c.demonstration?'拖动转动视角 · 双击查看基础组件':'拖动空白转动视角，拖动模块重新摆放'));
  $('#demo-follow').hidden=!c.floating;$('#demo-follow-next').hidden=!c.floating;$('#demo-follow-view').hidden=!c.floating;$('#demo-pan').hidden=false;$('#demo-views').hidden=!c.demonstration;$('#demo-views').innerHTML=(c.demoViews||[]).map(view=>`<button type="button" data-demo-view="${view.key}">${view.label}</button>`).join('');
  document.body.dataset.stageColor=stageColor(c);renderStructureMap();document.body.classList.toggle('engine-level',!!c.engine);$('#device-docks').hidden=!c.engine;resetReport();$('#engine-controls').hidden=!c.engine;engineControls();$('.scene-legend').hidden=c.nodes.length===0;$('.scene-identity .chip').textContent=c.demonstration?I18n.t('完整演示'):I18n.t('自由接线');$('#scene-help').textContent=c.floating?I18n.t('拖动旋转 · Shift / 右键拖动平移 · 滚轮缩放'):c.demonstration?I18n.t('拖动转动视角 · 双击查看基础组件'):c.nodes.length?I18n.t("拖模块摆放 · 点连线删除 · 双击查看模块卡"):I18n.t("圆口出，方口进 · 拖动空白转动视角");$('#pass-count').textContent='0 / '+c.sampleCount;document.title=I18n.t("神经工坊 · ")+c.title;$('.chapter span').textContent=c.chapter;$('.chapter strong').textContent=c.title;
+ $('#chapter-summary').textContent=lessonSummary(c);
  $('.mission h2').textContent=c.mission;$('.mission p').textContent=c.description;$('#mission-limits').innerHTML=c.engine?Object.entries(c.limits).map(([key,value])=>{const [name,unit]=M.metricLabels[key];return `<span>${name} ${key==='tps'||key==='aneMin'?'≥':'≤'} ${value} ${unit}</span>`;}).join(''):'';
  const reason=c.rationale,details=$('#mission-details');$('#mission-reason').hidden=!reason;
  if(details.dataset.lesson!==c.id){details.toggleAttribute('open',!!c.practice||c.id==='pack-scores');details.dataset.lesson=c.id;}
@@ -262,6 +263,9 @@ function stageChrome(){
  $('.route').innerHTML=`${c.routeInput?'<span>'+c.routeInput+'</span><i>→</i>':I18n.t("<span>输入 token</span><i>→</i>")}${c.id==='ffn'?I18n.t("<span>归一化输入 · 已就绪</span><i>→</i>"):''}${c.concept===c.title?'':'<span>'+c.concept+'</span><i>→</i>'}<strong>${c.outputTitle}</strong>${I18n.t('<span class="route-tail">教学缩尺 ')}${c.shape}</span>`;
 glossary.scan(document.body);
 }
+function lessonSummary(level){
+ return level.menu?.summary || level.summary || '';
+}
 function renderLevelMenu(){
  const route=M.routes[menuTrack],list=$('#level-list'),navigation=$('#level-stage-nav');
  $('#level-menu').dataset.stageColor=menuTrack;
@@ -271,7 +275,7 @@ function renderLevelMenu(){
  list.setAttribute('aria-labelledby','level-track-'+menuTrack);list.classList.toggle('grouped-levels',!!route.groups);
  const card=id=>{
   const c=M.levels[id],menu=c.menu;
-  return `<button type="button" class="level-choice ${id===stageId?'current':''} ${id===route.ids.at(-1)?'track-finale':''}" data-level="${id}" ${id===stageId?'aria-current="step"':''}><span class="level-choice-top"><span>${c.chapter}</span><span>${progress.completed(id)?I18n.t("✓ 已通过"):id===stageId?I18n.t("当前关卡"):''}</span></span>${c.demonstration?`<span class="level-purpose">${menu.label}</span>`:''}<strong>${c.title}</strong><span>${menu?.summary||c.summary}</span></button>`;
+  return `<button type="button" class="level-choice ${id===stageId?'current':''} ${id===route.ids.at(-1)?'track-finale':''}" data-level="${id}" ${id===stageId?'aria-current="step"':''}><span class="level-choice-top"><span>${c.chapter}</span><span>${progress.completed(id)?I18n.t("✓ 已通过"):id===stageId?I18n.t("当前关卡"):''}</span></span>${c.demonstration?`<span class="level-purpose">${menu.label}</span>`:''}<strong>${c.title}</strong><span>${lessonSummary(c)}</span></button>`;
  };
  if(!route.groups){list.innerHTML=route.ids.map(card).join('');glossary.scan(document.body);return;}
  const groupId=group=>'level-group-'+menuTrack+'-'+group.id;
