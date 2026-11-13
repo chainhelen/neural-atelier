@@ -504,6 +504,18 @@ test('rebuilding a fixed modern board clears preset and player wires, keeps posi
   doc.querySelector('#undo').onclick();assert.equal(app.eval('JSON.stringify(state)'),before);
  }
 });
+test('attention hint groups weight computation separately from the value projection',()=>{
+ const app=boot(new Map(),'#attention'),doc=app.document;
+ for(const lang of ['zh','en']){
+  app.c.I18n.setPreference(lang);doc.querySelector('#hint').onclick();
+  const flow=doc.querySelector('[data-map-flow="modernAttention"]'),weights=flow.querySelector('.attention-weight-steps');
+  assert.equal(weights.querySelector('summary').textContent,app.c.NeuralPrologue.definitions.attentionweights.name);
+  assert.deepEqual([...weights.querySelectorAll('[data-map-step]')].map(n=>n.dataset.mapStep),['qkv','rope','score','mask','softmax']);
+  assert.doesNotMatch(weights.textContent,/Q \/ K \/ V/);
+  assert.match(flow.querySelector('.map-branch-pair>ol:last-child').textContent,/V/);
+  assert.equal(flow.querySelector('.map-step-exit').dataset.mapStep,'wo');doc.querySelector('#structure-close').onclick();
+ }
+});
 test('the visible choose-level button opens the current lesson and receives focus on return',()=>{
  const app=boot(new Map(),'#encoder-decoder'),doc=app.document,button=doc.querySelector('#choose-level');
  for(const [lang,label] of [['zh','选择关卡'],['en','Choose a level']]){

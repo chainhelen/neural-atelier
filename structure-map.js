@@ -277,6 +277,12 @@ function render(id){
  if(id==='autoregressive')return generationMap(entry,outlet);
  const step=(n)=>`<li data-map-step="${n.id}" class="${entry.focus.includes(n.id)?'map-step-focus ':''}${entry.exit===n.id?'map-step-exit':''}"><span>${e(n.label)}</span>${entry.exit===n.id?`<b>${e(copy.exit)}</b>`:''}</li>`;
  let route=entry.steps.map(step).join('');
+ if(id==='attention'){
+  const steps=Object.fromEntries(entry.steps.map(n=>[n.id,n]));
+  const inside=[{...steps.qkv,label:L('Q / K 投影','Q / K projections')},steps.rope,steps.score,steps.mask,steps.softmax];
+  const weights=`<details class="attention-weight-steps" open><summary>${e(M.definitions.attentionweights.name)}</summary><ol>${inside.map(step).join('')}</ol></details>`;
+  route=`<li class="map-branch-pair"><ol><li class="map-step-focus">${weights}</li></ol><ol><li class="map-step-focus">${e(M.definitions.v.name)}</li></ol></li>${step(steps.av)}${step(steps.wo)}`;
+ }
  if(entry.flow==='cross'){
   const ns=Object.fromEntries(entry.steps.map(n=>[n.id,n]));
   route=`<li class="map-branch-pair"><ol>${step(ns.prepared)}${step(ns.q)}</ol><ol>${step(ns.encoded)}${step(ns.kv)}</ol></li>`+entry.steps.filter(n=>!['prepared','encoded','q','kv'].includes(n.id)).map(step).join('');

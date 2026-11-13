@@ -529,3 +529,7 @@ body.demo-fullscreen{overflow:hidden}
 #layernorm-equations{margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
 #layernorm-equations math{font-family:math;font-size:1.1rem;math-style:normal}
 .layernorm-moments{display:flex;justify-content:center;flex-wrap:wrap;gap:12px 22px;margin-top:12px}
+
+.attention-weight-steps>summary{cursor:pointer;font-weight:600}
+.structure-flow .attention-weight-steps>ol{margin-top:8px}
+.structure-flow .attention-weight-steps li{background:var(--paper);font-weight:400}
