@@ -525,3 +525,7 @@ body.demo-fullscreen{overflow:hidden}
 .glossary-popover-hint{display:block;margin-top:6px;color:var(--muted);font-size:11px}
 @keyframes glossary-pop-show{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){#glossary-popover{animation-duration:0s}}
+
+#layernorm-equations{margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+#layernorm-equations math{font-family:math;font-size:1.1rem;math-style:normal}
+.layernorm-moments{display:flex;justify-content:center;flex-wrap:wrap;gap:12px 22px;margin-top:12px}

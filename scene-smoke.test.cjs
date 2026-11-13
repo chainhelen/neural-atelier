@@ -969,12 +969,16 @@ test('LayerNorm cards show the actual per-token centering and scaling as one bas
  const app=await boot(),M=app.c.NeuralPrologue,doc=app.document;
  for(const language of ['zh','en']){
   app.c.I18n.setPreference(language);
-  for(const [level,kind,width]of [['layernorm','layernorm2',2],['encoder-layer','ln-attn',4],['decoder-layer','ln-cross',4]]){
+  for(const [level,kind,width]of [['layernorm','layernorm2',2],['encoder-layer','ln-attn',4],['decoder-layer','ln-cross',4],['decoder-layer','ln-ffn',4]]){
    app.api.switchLevel(level);app.api.setState(M.solutions(level));app.api.getWorld().rebuild();app.api.getWorld().focus(kind);
    const ex=M.extraExample(kind,level),n=ex.normalization,input=Array.from(ex.inputs[0][1]).slice(0,width),centered=input.map(x=>x-n.mean),result=centered.map(x=>x/Math.sqrt(n.variance+n.epsilon));
    assert.equal(n.width,width);assert.ok(Math.abs(centered.reduce((a,b)=>a+b,0))<1e-9);
    assert.ok(result.every((x,i)=>Math.abs(x-ex.output[1][i])<1e-9));
    assert.equal(doc.querySelector('#card-package').hidden,true);assert.equal(M.packageOrigin(kind),null);
+   const equations=doc.querySelector('#layernorm-equations');
+   assert.equal(equations.hidden,false);
+   assert.equal(equations.querySelectorAll('math').length,3);
+   assert.match(equations.textContent,/γ/);assert.match(equations.textContent,/β/);
    assert.equal(doc.querySelectorAll('.card-layernorm-steps>b').length,3);
    const rendered=doc.querySelector('.card-layernorm-steps').textContent;
    for(const text of ['μ =','σ² =','γ','β','0.000001'])assert.ok(rendered.includes(text),text);

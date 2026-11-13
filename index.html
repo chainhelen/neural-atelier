@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>神经工坊</title><link rel="stylesheet" href="style.css?v=chapter-summary-1"></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>神经工坊</title><link rel="stylesheet" href="style.css?v=layernorm-equations-1"></head>
 <body data-screen="home"><div id="game">
 <header class="topbar"><a class="brand" id="home-open" href="./" aria-label="返回首页" title="返回首页"><span class="brand-mark">N</span><div><h1>神经工坊</h1><span>NEURAL ATELIER</span></div></a><div class="chapter"><button id="levels-open" type="button" aria-label="返回关卡选择" title="返回关卡选择" aria-haspopup="dialog" aria-controls="level-menu"><i aria-hidden="true">←</i><span>正式关卡 / 01</span></button><div class="chapter-copy"><strong>让一层醒来</strong><p id="chapter-summary"></p></div></div><button id="hint" type="button" aria-haspopup="dialog" aria-controls="structure-dialog">给个提示</button><button id="settings-open" aria-haspopup="dialog"><span aria-hidden="true">⚙</span> 设置</button><button id="about-open">这是什么？</button>
   <a id="game-github" class="repo-link" href="https://github.com/chainhelen/neural-atelier" target="_blank" rel="noopener noreferrer" aria-label="GitHub 源码仓库（新标签页）" title="GitHub · chainhelen/neural-atelier">
@@ -41,6 +41,19 @@
     <div class="card-description">
       <div class="card-ability"><span>能力</span><h3 id="card-ability"></h3></div><p id="card-meaning"></p>
       <div id="card-formula" class="card-formula"></div>
+      <div id="layernorm-equations" hidden>
+        <math display="block" aria-label="LayerNorm(x)ᵢ = γᵢ (xᵢ − μ) / √(σ² + ε) + βᵢ">
+          <msub><mrow><mi mathvariant="normal">LayerNorm</mi><mo>(</mo><mi>x</mi><mo>)</mo></mrow><mi>i</mi></msub>
+          <mo>=</mo><msub><mi>γ</mi><mi>i</mi></msub>
+          <mfrac><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi></mrow><msqrt><msup><mi>σ</mi><mn>2</mn></msup><mo>+</mo><mi>ε</mi></msqrt></mfrac>
+          <mo>+</mo><msub><mi>β</mi><mi>i</mi></msub>
+        </math>
+        <div class="layernorm-moments">
+          <math aria-label="μ = (1/d) Σⱼ₌₁ᵈ xⱼ"><mi>μ</mi><mo>=</mo><mfrac><mn>1</mn><mi>d</mi></mfrac><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>d</mi></munderover><msub><mi>x</mi><mi>j</mi></msub></math>
+          <math aria-label="σ² = (1/d) Σⱼ₌₁ᵈ (xⱼ − μ)²"><msup><mi>σ</mi><mn>2</mn></msup><mo>=</mo><mfrac><mn>1</mn><mi>d</mi></mfrac><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>d</mi></munderover><msup><mrow><mo>(</mo><msub><mi>x</mi><mi>j</mi></msub><mo>−</mo><mi>μ</mi><mo>)</mo></mrow><mn>2</mn></msup></math>
+        </div>
+        <p id="layernorm-symbols"></p>
+      </div>
       <div id="card-package" hidden></div>
       <h4 id="card-purpose-title">它在这一层的作用</h4><p id="card-purpose"></p>
       <div class="card-example"><div class="card-example-title">用「猫」的向量看一次<span id="card-example-input">R = [1, 1]</span></div><div id="card-example-values"></div><small>按正确计算路径演算 · 显示数值已四舍五入</small></div>
@@ -94,4 +107,4 @@
 </dialog>
 <div id="shelf-tooltip" role="tooltip" hidden></div>
 <div id="glossary-popover" role="tooltip" hidden></div>
-<script src="locales/en.js?v=visual-declutter-2"></script><script src="i18n.js?v=slow-demo-1"></script><script src="music.js?v=slow-demo-1"></script><script src="shell.js?v=url-navigation-2"></script><script src="model.js?v=slow-demo-1"></script><script src="campaign.js?v=outlet-pan-1"></script><script src="engine-model.js?v=slow-demo-1"></script><script src="original-curriculum.js?v=chapter-summary-1"></script><script src="transformer-demo.js?v=visual-declutter-1"></script><script src="cloud-curriculum.js?v=visual-declutter-1"></script><script src="lesson-io.js?v=assembly-label-1"></script><script src="structure-map.js?v=lesson-boundaries-1"></script><script type="module" src="game.js?v=chapter-summary-1"></script></body></html>
+<script src="locales/en.js?v=visual-declutter-2"></script><script src="i18n.js?v=slow-demo-1"></script><script src="music.js?v=slow-demo-1"></script><script src="shell.js?v=url-navigation-2"></script><script src="model.js?v=slow-demo-1"></script><script src="campaign.js?v=outlet-pan-1"></script><script src="engine-model.js?v=slow-demo-1"></script><script src="original-curriculum.js?v=layernorm-equations-1"></script><script src="transformer-demo.js?v=visual-declutter-1"></script><script src="cloud-curriculum.js?v=visual-declutter-1"></script><script src="lesson-io.js?v=assembly-label-1"></script><script src="structure-map.js?v=lesson-boundaries-1"></script><script type="module" src="game.js?v=layernorm-equations-1"></script></body></html>

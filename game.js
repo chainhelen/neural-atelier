@@ -785,6 +785,9 @@ try{
   $('#card-purpose-title').textContent=I18n.t(cardStageId==='autoregressive'?'它在生成循环中的作用':'它在这一层的作用');
   const origin=M.packageOrigin(kind);
   for(const [field,value]of Object.entries({name,seal:c.seal,english:c.english,family:c.family,number:origin?I18n.t('来源：')+origin.chapter:stage().chapter,ability:c.ability,meaning:c.meaning,formula:c.formula,purpose:M.componentUse(kind)||c.purpose}))$('#card-'+field).textContent=value;
+  const isLayerNorm=d.type==='layernorm';
+  $('#layernorm-equations').hidden=!isLayerNorm;
+  if(isLayerNorm)$('#layernorm-symbols').textContent=M.layerNormGuide.symbols;
   if(origin)$('#card-number').dataset.originLevel=origin.id;else delete $('#card-number').dataset.originLevel;
   $('#card-stats').innerHTML=`${I18n.t("<div><span>向量维度</span><b>")}${d.ins.map(dim=>moduleShape(kind,dim)).join(' / ')} → ${moduleShape(kind,d.out)}${I18n.t("</b></div><div><span>权重矩阵</span><b>")}${c.weight}${I18n.t("</b></div><div><span>计算方式</span><b>")}${c.trait}</b></div>`;
   $('#card-package').hidden=!M.packages?.[kind];$('#card-package').innerHTML=M.packages?.[kind]?`<h4>${I18n.t('内部组成')}</h4>${packageDiagram(kind)}`:'';

@@ -762,6 +762,7 @@ for(const id of ['layernorm2','ln-attn','ln-ffn','ln-cross'])Object.assign(cards
  trait:L('每个 token 独立归一化','Normalize each token independently')
 });
 M.layerNormGuide={
+ symbols:L('μ 和 σ² 分别是同一个 token 的 d 个特征的均值和方差。γᵢ 和 βᵢ 是第 i 个特征可学习的缩放和偏置，本例固定为 1 和 0。ε = 0.000001，方差为 0 时也能计算。','For each token, compute the mean μ and variance σ² across its d features. Feature i has a learnable scale γᵢ and bias βᵢ, fixed at 1 and 0 in this example. The denominator includes ε = 0.000001 so division is defined even when the variance is zero.'),
  center:L('1 · 减去均值','1 · Subtract the mean'),
  scale:L('2 · 除以标准差','2 · Divide by the standard deviation'),
  affine:L('3 · 按特征缩放与平移','3 · Scale and shift each feature'),
