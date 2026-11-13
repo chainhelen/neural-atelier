@@ -635,8 +635,10 @@ try{
   if(busy&&!stage().sequence){const marker=addLabel('span','row-marker',flowIdentity(),{'data-owner':'R','data-row':sample<3?String(sample):'validation'},()=>sample<3?new T.Vector3(stage().sourceX-1,.99,art.rowZ(sample)):new T.Vector3(stage().sourceX,1.4,2));marker.style.setProperty('--row-color',colorHex(art.rowColor(sample)));}
   stage().sources.forEach(id=>addLabel('button','port '+(pending===id?'pending':''),(stage().sourcePorts?.[id]||(id==='R'&&stageId!=='ffn'?'X':id))+' · '+shape(stage().sourceDim||2),{'type':'button','data-output':id,'aria-label':`${outputName(id)}${I18n.t(" 输出口，")}${shape(stage().sourceDim||2)}`},()=>point(id)));
   if(stageId==='ffn')addLabel('span','source-label','Z = RMSNorm(R)',{},()=>new T.Vector3(stage().sourceX,.65,2.55));
-  state.nodes.forEach(n=>{const d=definition(n.id);addLabel('button','node-label '+(selected===n.id?'selected ':''),nodeName(n.id),{'type':'button','data-node':n.id,'aria-label':`${nodeName(n.id)}${I18n.t(stage().demonstration?" 模块，双击查看":" 模块，拖动移动")}`},()=>new T.Vector3(n.x,(n.y||0)+1.05,n.z-1.15));
-   if(stage().engine)addLabel('button','device-badge device-'+n.device+(busy&&current?.depths[n.id]===level?' processing':''),n.device.toUpperCase(),{'type':'button','data-assign':n.id,'data-owner':n.id,'aria-label':definition(n.id).name+I18n.t(" 当前在 ")+n.device+I18n.t("，选择后点击芯片区域")},()=>new T.Vector3(n.x,1.9,n.z-.45));
+  state.nodes.forEach(n=>{const d=definition(n.id);
+   const titlePosition=()=>new T.Vector3(n.x,(n.y||0)+1.05,n.z-1.15);
+   addLabel('button','node-label '+(selected===n.id?'selected ':''),nodeName(n.id),{'type':'button','data-node':n.id,'aria-label':`${nodeName(n.id)}${I18n.t(stage().demonstration?" 模块，双击查看":" 模块，拖动移动")}`},titlePosition);
+   if(stage().engine)addLabel('button','device-badge device-'+n.device+(busy&&current?.depths[n.id]===level?' processing':''),n.device.toUpperCase(),{'type':'button','data-assign':n.id,'data-owner':n.id,'aria-label':definition(n.id).name+I18n.t(" 当前在 ")+n.device+I18n.t("，选择后点击芯片区域")},titlePosition);
    d.ins.forEach((dim,i)=>addLabel('button','port input '+(n.links[i]?'connected ':''),n.id==='enattn'?'Q/K/V':moduleShape(M.nodeKind(n),dim),{'type':'button','data-input':`${n.id}:${i}`,'aria-label':`${nodeName(n.id)}${I18n.t(" 输入 ")}${i+1}，${moduleShape(M.nodeKind(n),dim)}${n.links[i]?I18n.t("，已连接"):''}`},()=>point(n.id,'in',i)));
    addLabel('button','port '+(pending===n.id?'pending':''),n.id==='enqkv'?'Q/K/V':moduleShape(M.nodeKind(n),d.out),{'type':'button','data-output':n.id,'aria-label':`${nodeName(n.id)}${I18n.t(" 输出口，")}${moduleShape(M.nodeKind(n),d.out)}`},()=>point(n.id));
    if(busy&&current?.values[n.id]&&!stage().sequence&&(current.depths[n.id]||0)<=level&&fault?.id!==n.id)addLabel('span','node-value',`${flowIdentity()} · ${vector(current.values[n.id])}`,{'data-owner':n.id},()=>new T.Vector3(n.x,.5,n.z+1.45));
@@ -737,8 +739,18 @@ try{
   const labelScale=focusId?1:(stage().labelZoom||stage().zoom)/zoom;
   // Measure overlays together before moving them, avoiding layout per port.
   const layouts=elements.map(({el,pos})=>({el,xyz:pos(),xy:project(pos()),width:el.offsetWidth,height:el.offsetHeight}));
+  const chipTitles=new Map(),chipBadges=new Map();
+  if(stage().engine)for(const {el,width} of layouts){
+   if(el.dataset.node)chipTitles.set(el.dataset.node,width);
+   if(el.dataset.assign)chipBadges.set(el.dataset.assign,width);
+  }
   layouts.forEach(({el,xyz,xy:[x,y],width,height})=>{
    const depth=stage().floating?-xyz.clone().applyMatrix4(camera.matrixWorldInverse).z:1,localScale=stage().floating?Math.min(1.25,labelScale*Math.min(3,camera.position.distanceTo(cameraTarget)/Math.max(.1,depth))):labelScale;
+   if(stage().engine&&!focusId&&titleOpacity>0&&!calculating.has(el.dataset.owner)){
+    // Center the two controls together, with a gap in screen pixels.
+    if(chipBadges.has(el.dataset.node))x-=(chipBadges.get(el.dataset.node)+4)/2;
+    if(chipTitles.has(el.dataset.assign))x+=(chipTitles.get(el.dataset.assign)*localScale+4)/2;
+   }
    el.hidden=!!focusId&&(el.dataset.owner!==focusId||el.classList.contains('node-label')||el.classList.contains('local-fault')||el.classList.contains('fault-pin'))||el.classList.contains('node-label')&&calculating.has(el.dataset.owner);
    if(el.classList.contains('node-label')||el.classList.contains('source-label')||el.classList.contains('port'))el.style.transform=`translate(-50%,-50%) scale(${localScale})`;
    if(el.classList.contains('node-label')||el.classList.contains('source-label')){el.style.opacity=String(titleOpacity);el.hidden=el.hidden||titleOpacity===0;}
