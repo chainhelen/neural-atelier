@@ -323,7 +323,8 @@ function navigate(target,{source='user'}={}){
  }else if(next.screen==='game')$('#run').focus?.({preventScroll:true});
  writeNavigation(next,source!=='user');
 }
-function levelMenu(fromHome=false){navigate({screen:'levels',levelId:stageId,returnScreen:fromHome===true?'home':'game'});}
+let levelMenuOpener;
+function levelMenu(fromHome=false,opener=$('#levels-open')){levelMenuOpener=opener;navigate({screen:'levels',levelId:stageId,returnScreen:fromHome===true?'home':'game'});}
 function switchLevel(id,fromHash=false){
  id=M.resolveLevelId(id);if((busy&&!fromHash)||!id)return;
  navigate({screen:'game',levelId:id},{source:fromHash?'history':'user'});
@@ -346,9 +347,10 @@ function restoreNavigation(){navigate(readNavigation(),{source:'history'});}
 window.addEventListener?.('popstate',restoreNavigation);
 window.addEventListener?.('hashchange',restoreNavigation);
 const levelDialog=$('#level-menu');let levelBackdropStart=null;
-function closeLevelMenu(){levelBackdropStart=null;navigate({screen:navigationState.returnScreen,levelId:stageId});if(navigationState.screen==='game')$('#levels-open').focus?.({preventScroll:true});}
+function closeLevelMenu(){levelBackdropStart=null;navigate({screen:navigationState.returnScreen,levelId:stageId});if(navigationState.screen==='game')(levelMenuOpener||$('#levels-open')).focus?.({preventScroll:true});}
 function outsideLevelDialog(e){const r=levelDialog.getBoundingClientRect();return e.target===levelDialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom);}
-$('#levels-open').onclick=levelMenu;$('#levels-close').onclick=closeLevelMenu;
+for(const button of [$('#levels-open'),$('#choose-level')])button.onclick=()=>levelMenu(false,button);
+$('#levels-close').onclick=closeLevelMenu;
 levelDialog.addEventListener('pointerdown',e=>{levelBackdropStart=e.button===0&&e.isPrimary!==false&&outsideLevelDialog(e)?{id:e.pointerId,x:e.clientX,y:e.clientY}:null;});
 levelDialog.addEventListener('pointercancel',()=>levelBackdropStart=null);
 levelDialog.addEventListener('click',e=>{

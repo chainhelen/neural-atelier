@@ -490,6 +490,16 @@ test('chapter back button opens the current route and stage even from a direct l
   app.c.I18n.setPreference('en');assert.equal(button.getAttribute('aria-label'),'Back to level selection');assert.equal(button.title,'Back to level selection');assert.doesNotMatch(button.textContent,/[㐀-鿿]/);assert.deepEqual([...app.c.I18n.missing],[]);
  }
 });
+test('the visible choose-level button opens the current lesson and receives focus on return',()=>{
+ const app=boot(new Map(),'#encoder-decoder'),doc=app.document,button=doc.querySelector('#choose-level');
+ for(const [lang,label] of [['zh','选择关卡'],['en','Choose a level']]){
+  app.c.I18n.setPreference(lang);
+  assert.equal(button.textContent,label);assert.equal(button.nextElementSibling.id,'hint');
+  button.click();assert.equal(doc.querySelector('#level-list [aria-current]').dataset.level,'encoder-decoder');
+  let focused=false;button.focus=()=>focused=true;
+  doc.querySelector('#levels-close').click();assert.equal(focused,true);assert.equal(app.location.hash,'#encoder-decoder');
+ }
+});
 for(const paused of [false,true])test(`chapter back button remains available during a ${paused?'paused':'running'} run and cancels it safely`,async()=>{
  const app=boot(new Map(),'#wire'),doc=app.document,button=doc.querySelector('.chapter #levels-open');app.c.performance=performance;
  app.eval("state=M.solutions(stageId);checkpoint();world.animate=()=>new Promise(resolve=>window.finishAnimation=resolve);window.board=state;window.undoStack=history");
