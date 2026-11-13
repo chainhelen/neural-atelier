@@ -515,7 +515,7 @@ const updateRoles=Object.fromEntries([
 ]);
 const roleCopy={
  attention:{residual:L('一路接自注意力的计算结果，另一路接进入这一段的特征。不能用来代替 FFN 或交叉注意力的残差。','Connect a self-attention result and the features entering that stage. This does not replace an FFN or cross-attention residual.'),norm:L('只接 Attention 残差的输出。它属于自注意力这一段，不是 FFN 的归一化。','Accepts only the Attention residual output. It belongs to the self-attention stage, not the FFN stage.')},
- cross:{residual:L('一路接交叉注意力的计算结果，另一路接发起查询的目标特征。','Connect a cross-attention result and the target features that supplied its queries.'),norm:L('只接交叉注意力残差的输出，不能借给自注意力或 FFN 使用。','Accepts only the cross-attention residual output, not a self-attention or FFN residual.')},
+ cross:{residual:L('每个目标词用自己的特征生成查询 Q。残差旁路保留生成 Q 之前的目标特征，再加上这个词从源句读回的信息。','Each target token uses its features to form a query Q. The residual bypass carries those features from before the Q projection and adds the information the token retrieves from the source.'),norm:L('只接交叉注意力残差的输出，不能借给自注意力或 FFN 使用。','Accepts only the cross-attention residual output, not a self-attention or FFN residual.')},
  ffn:{residual:L('一路接 FFN 的计算结果，另一路接进入 FFN 前的特征。这个相加组件内部不包含 FFN。','Connect an FFN result and the features entering the FFN. This addition module does not contain an FFN.'),norm:L('只接 FFN 残差的输出，不能借给注意力使用。','Accepts only the FFN residual output; it cannot serve the attention stage.')}
 };
 I18n.prepare(roleCopy);
@@ -535,7 +535,7 @@ M.residualConnectionHint=(state,from,to,port)=>{
   const update=state.nodes.find(n=>n.id===inputs[updatePort]);
   const query=update.links[0],bypass=inputs[1-updatePort];
   if(query&&bypass&&query!==bypass)
-   return L('看看这条残差旁路：它保留的是进入这一段的目标特征吗？','Check the residual bypass. Does it carry the target features entering this stage?');
+   return L('想想查询 Q 是从哪份特征算出来的。残差旁路保留的是那份特征吗？','Which features were used to form the query Q? Does the residual bypass carry those same features?');
  }
  return '';
 };
