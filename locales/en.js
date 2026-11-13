@@ -629,6 +629,7 @@ globalThis.AtelierEnglish = {
   "数值通过；性能验收未通过，查看运行报告。": "Values match, but performance targets failed. Check the run report.",
   "通过：": "Passed: ",
   "已撤销。": "Undone.",
+  "已清空连线，可以重新接线。": "Wires cleared. You can wire the circuit from scratch.",
   "已恢复本关起点。": "Level restored to its starting circuit.",
   "已恢复上次方案。": "Previous solution restored.",
   "整段输入": "Whole sequence",

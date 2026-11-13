@@ -490,7 +490,22 @@ async function run(){
  }
  busy=paused=false;world.labels();refresh();renderReport();say(stage().engine?(engineReport.pass?I18n.t("数值与性能约束全部通过。"):I18n.t("数值通过；性能验收未通过，查看运行报告。")):`${I18n.t("通过：")}${stage().sampleCount} / ${stage().sampleCount}。`,stage().engine&&!engineReport.pass?'error':'success');showCompletion();
 }
-$('#run').onclick=run;$('#undo').onclick=()=>{state=history.pop();pending=null;changed();say(I18n.t("已撤销。"));};$('#reset').onclick=()=>{checkpoint();state=M.initial(stageId);selected=pending=placing=null;world?.clearPlacement?.();changed();say(I18n.t("已恢复本关起点。"));};
+$('#run').onclick=run;$('#undo').onclick=()=>{state=history.pop();pending=null;changed();say(I18n.t("已撤销。"));};
+$('#reset').onclick=()=>{
+ checkpoint();
+ const clearWires=stage().track==='modern'&&stage().startWithModules;
+ if(clearWires){
+  for(const node of state.nodes)node.links.fill(null);
+  state.sink=null;
+ }else{
+  state=M.initial(stageId);
+ }
+ selected=pending=placing=null;
+ world?.clearPlacement?.();
+ changed();
+ say(I18n.t(clearWires?'已清空连线，可以重新接线。':'已恢复本关起点。'));
+};
+
 let progressResetMessage='',progressResetMode='badges';
 function progressResetStatus(message){progressResetMessage=message;$('#progress-reset-status').textContent=I18n.t(message);$('#progress-reset-status').hidden=false;}
 function renderProgressReset(){

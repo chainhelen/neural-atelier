@@ -490,6 +490,20 @@ test('chapter back button opens the current route and stage even from a direct l
   app.c.I18n.setPreference('en');assert.equal(button.getAttribute('aria-label'),'Back to level selection');assert.equal(button.title,'Back to level selection');assert.doesNotMatch(button.textContent,/[㐀-鿿]/);assert.deepEqual([...app.c.I18n.missing],[]);
  }
 });
+test('rebuilding a fixed modern board clears preset and player wires, keeps positions and supports undo',()=>{
+ for(const id of ['swiglu','rope']){
+  const app=boot(new Map(),'#'+id),doc=app.document;
+  app.eval('state.sink=state.nodes.at(-1).id;state.nodes[0].x+=0.25');
+  const before=app.eval('JSON.stringify(state)'),expected=JSON.parse(before);
+  for(const n of expected.nodes)n.links.fill(null);
+  expected.sink=null;
+  doc.querySelector('#reset').onclick();
+  assert.deepEqual(JSON.parse(app.eval('JSON.stringify(state)')),expected);
+  const reopened=boot(app.storage,'#'+id);
+  assert.deepEqual(JSON.parse(reopened.eval('JSON.stringify(state)')),expected);
+  doc.querySelector('#undo').onclick();assert.equal(app.eval('JSON.stringify(state)'),before);
+ }
+});
 test('the visible choose-level button opens the current lesson and receives focus on return',()=>{
  const app=boot(new Map(),'#encoder-decoder'),doc=app.document,button=doc.querySelector('#choose-level');
  for(const [lang,label] of [['zh','选择关卡'],['en','Choose a level']]){
