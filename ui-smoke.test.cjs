@@ -433,6 +433,15 @@ test('failure, cancellation and unmet engine constraints never show completion; 
  assert.ok(app.eval('results.every(r=>r.pass)'));assert.equal(app.eval('engineReport.pass'),false);assert.equal(dialog.open,false);
 });
 
+test('placement shows measured latency and its limit directly after a failed run',async()=>{
+ const app=boot();
+ app.eval("switchLevel('placement');world.animate=async()=>{}");
+ await app.eval('run()');
+ const failure=app.document.querySelector('#run-report .failed-metrics li').textContent;
+ assert.match(failure,/首词 [\d.]+ ms（目标 ≤ 110 ms）/);
+ assert.ok(app.document.querySelector('#feedback').textContent.includes(failure));
+});
+
 test('finale completion stays on its track and stale dialogs close on circuit or level changes',async()=>{
  const app=boot(),dialog=app.document.querySelector('#level-complete'),M=app.c.NeuralPrologue;
  for(const [id,track]of [['transformer-demo','main'],['capstone','engine']]){

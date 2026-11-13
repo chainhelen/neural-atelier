@@ -533,3 +533,10 @@ body.demo-fullscreen{overflow:hidden}
 .attention-weight-steps>summary{cursor:pointer;font-weight:600}
 .structure-flow .attention-weight-steps>ol{margin-top:8px}
 .structure-flow .attention-weight-steps li{background:var(--paper);font-weight:400}
+
+.engine-level .run-toolbar:has(#run-report.performance-failed:not([hidden])){flex-wrap:wrap}
+.engine-level .run-toolbar .feedback.error{flex:1 1 220px;white-space:normal;color:#944331;font-size:14px}
+#run-report.performance-failed{flex-basis:100%;height:auto;align-items:flex-start;padding:12px 14px;border:1px solid #d6b5a4;border-radius:8px;background:var(--paper)}
+#run-report.performance-failed .run-report-content{max-height:42vh}
+#run-report .failed-metrics h3{font-size:15px;color:#873f2c}
+.failed-metrics ul{margin:4px 0 12px;padding-left:20px;color:var(--ink);font-size:14px}

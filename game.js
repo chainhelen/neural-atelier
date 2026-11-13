@@ -177,8 +177,26 @@ function engineControls(){
 function assignDevice(id,device){if(busy||!stage().engine)return;const n=state.nodes.find(n=>n.id===id);if(!n)return;checkpoint();n.device=device;changed();say(nodeName(id)+' → '+device.toUpperCase());}
 function closeReport(restoreFocus=false){$('#run-report').hidden=true;if(restoreFocus)$('#run').focus({preventScroll:true});}
 function resetReport(){closeReport();$('#run-report').replaceChildren();}
+function performanceFailures(report){
+ const failures=[];
+ report.runs.forEach((run,index)=>{
+  const prefix=report.runs.length>1?I18n.t("负载 {n} · ").replace("{n}",index+1):'';
+  for(const check of run.checks){
+   if(check.pass)continue;
+   const [name,unit]=M.metricLabels[check.key],suffix=unit?' '+unit:'';
+   const limit=check.key==='tps'||check.key==='aneMin'?'≥':'≤';
+   failures.push(prefix+name+' '+fmt(check.value)+suffix+I18n.t("（目标 ")+limit+' '+check.target+suffix+I18n.t("）"));
+  }
+  failures.push(...run.errors.map(error=>prefix+error));
+ });
+ return failures;
+}
 function renderReport(){
  const panel=$('#run-report'),attentionValues=M.valueForKind(state,current,'softmax')||M.valueForKind(state,current,'attentionweights')||M.valueForKind(state,current,'original-weights');let html=I18n.t("<div class=\"run-report-content\" tabindex=\"0\" aria-label=\"本次运行详情\">");
+ panel.classList.toggle('performance-failed',!!engineReport&&!engineReport.pass);
+ if(engineReport&&!engineReport.pass){
+  html+='<section class="failed-metrics"><h3>'+I18n.t("未达标项目")+'</h3><ul>'+performanceFailures(engineReport).map(text=>'<li>'+text+'</li>').join('')+'</ul></section>';
+ }
  if(stage().tokenOutput){html+='<div class="word-trials">'+results.map((r,i)=>`${I18n.t("<div><small>输入：")}${samples()[i].word}</small><strong class="${r.pass?'good':'bad'}">${r.actual?M.readTokens(r.actual):I18n.t("未得到输出")}${I18n.t("</strong><span>目标：")}${M.readTokens(r.expected)}</span></div>`).join('')+I18n.t("</div><p>文字来自词表分数最高的候选。计算出错可能改词，也可能碰巧仍是同一个词。</p>");}
  if(stage().attentionReadout&&attentionValues){const a=M.math.rows(attentionValues,3),words=samples()[sample].word.split(' / ');html+=I18n.t("<h3>各位置从哪里读取内容</h3><div class=\"attention-map\">")+a.map((r,i)=>`<div><b>${words[i]}${I18n.t(" · 位置 ")}${i}</b>${r.map((v,j)=>`<span style="--weight:${Math.max(0,Math.min(1,v))}">${words[j]} ${Math.round(v*100)}%</span>`).join('')}</div>`).join('')+I18n.t("</div><p>比例是这次计算的注意力权重，不是对真实语言理解的完整解释。</p>");}
  if(current?.componentIssue)html+=`<p class="bad">${current.componentIssue.message}</p>`;
@@ -488,7 +506,7 @@ async function run(){
    if(id!==runId||!busy)return;
   }
  }
- busy=paused=false;world.labels();refresh();renderReport();say(stage().engine?(engineReport.pass?I18n.t("数值与性能约束全部通过。"):I18n.t("数值通过；性能验收未通过，查看运行报告。")):`${I18n.t("通过：")}${stage().sampleCount} / ${stage().sampleCount}。`,stage().engine&&!engineReport.pass?'error':'success');showCompletion();
+ busy=paused=false;world.labels();refresh();renderReport();say(stage().engine?(engineReport.pass?I18n.t("数值与性能约束全部通过。"):I18n.t("数值通过，性能未达标。")+performanceFailures(engineReport)[0]):`${I18n.t("通过：")}${stage().sampleCount} / ${stage().sampleCount}。`,stage().engine&&!engineReport.pass?'error':'success');showCompletion();
 }
 $('#run').onclick=run;$('#undo').onclick=()=>{state=history.pop();pending=null;changed();say(I18n.t("已撤销。"));};
 $('#reset').onclick=()=>{
