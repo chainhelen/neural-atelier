@@ -335,6 +335,17 @@ test('role checks support either residual input order and building a network fro
   for(const {v}of M.samplesFor(level)){const ev=M.evaluate(s,v);assert.equal(ev.error,null);assert.ok(close(ev.output,M.reference(v,level)));}
  }
 });
+test('residual wiring hints distinguish a borrowed block from a wrong cross-attention bypass',()=>{
+ const s=M.solutions('decoder-layer'),r=s.nodes.find(n=>n.id==='cross-add');
+ for(const port of [0,1]){
+  r.links=[null,null];
+  assert.match(M.residualConnectionHint(s,'masked-heads',r.id,port),/可能选错/);
+  assert.equal(M.residualConnectionHint(s,'cross-heads',r.id,port),'');
+  r.links[port]='cross-heads';
+  assert.match(M.residualConnectionHint(s,'Z',r.id,1-port),/旁路/);
+  assert.equal(M.residualConnectionHint(s,'ln-attn',r.id,1-port),'');
+ }
+});
 test('role errors reject the new edge without mutation, including upstream-last bypasses',()=>{
  const s=M.solutions('decoder-layer'),before=JSON.stringify(s);
  for(const [from,to,port]of [['encoder-add','ln-ffn',0],['masked-heads','ln-ffn',0],['masked-heads','cross-add',1]]){

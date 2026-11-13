@@ -521,6 +521,24 @@ const roleCopy={
 I18n.prepare(roleCopy);
 L('组件用途不匹配：','Module role mismatch: ');L('组件用途不匹配','Module role mismatch');
 M.componentUse=kind=>{const role=normRoles[kind]||residualRoles[kind];return role?roleCopy[role][normRoles[kind]?'norm':'residual']:'';};
+M.residualConnectionHint=(state,from,to,port)=>{
+ const target=state.nodes.find(n=>n.id===to);
+ const role=target&&residualRoles[M.nodeKind(target)];
+ if(!role)return '';
+ const inputs=target.links.slice();
+ inputs[port]=from;
+ const sourceRole=id=>updateRoles[M.kindOf(state,id)];
+ const updatePort=inputs.findIndex(id=>sourceRole(id)===role);
+ if(updatePort<0&&sourceRole(from))
+  return L('这块残差可能选错了。看看它属于哪一段。','This residual might belong to a different stage. Check its label.');
+ if(role==='cross'&&updatePort>=0){
+  const update=state.nodes.find(n=>n.id===inputs[updatePort]);
+  const query=update.links[0],bypass=inputs[1-updatePort];
+  if(query&&bypass&&query!==bypass)
+   return L('看看这条残差旁路：它保留的是进入这一段的目标特征吗？','Check the residual bypass. Does it carry the target features entering this stage?');
+ }
+ return '';
+};
 function componentIssues(state){
  const nodes=new Map(state.nodes.map(n=>[n.id,n])),sources=new Set(M.levels[state.levelId].sources);
  const node=id=>nodes.get(id),kind=id=>M.nodeKind(node(id)),completeMemo=new Map();

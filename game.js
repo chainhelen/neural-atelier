@@ -374,9 +374,12 @@ function link(from,to,port){
  if(err){
   const source=stage().sources.includes(from),out=source?(stage().sourceDim||2):definition(from)?.out,dim=to==='sink'?stage().sinkDim:definition(to)?.ins[port];
   const message=from!==to&&out&&dim&&out!==dim?`${I18n.t("尺寸不匹配：输出 ")}${source?shape(out):moduleShape(kindOf(from),out)}${I18n.t("，入口需要 ")}${to==='sink'?shape(dim):moduleShape(kindOf(to),dim)}`:err;
-  say(message,'error');world?.showConnectionError?.(message,to,port);return;
+  const feedback=err.startsWith(I18n.t('组件用途不匹配：')) && M.residualConnectionHint(next,from,to,port) || message;
+  say(feedback,'error');world?.showConnectionError?.(feedback,to,port);return;
  }
- checkpoint();state=next;pending=null;changed();say(I18n.t("已连接。"));
+ const hint=M.residualConnectionHint(next,from,to,port);
+ checkpoint();state=next;pending=null;changed();say(hint||I18n.t("已连接。"));
+ if(hint)world?.showConnectionHint?.(hint,to,port);
 }
 function chooseWire(to,index){if(busy||stage().demonstration)return;const from=to==='sink'?state.sink:state.nodes.find(n=>n.id===to)?.links[index];if(!from)return;pending=placing=actionNode=null;selectedWire={from,to,index};world?.clearConnectionError?.();world?.clearPreview?.();world?.clearPlacement?.();world?.labels();}
 function deleteWire(){if(busy||!selectedWire)return;const {to,index}=selectedWire;checkpoint();M.disconnect(state,to,index);changed();say(I18n.t("已删除连线。"));}
@@ -566,13 +569,16 @@ try{
   if(to!=='sink'&&!state.nodes.some(n=>n.id===to)){clearConnectionError();return;}
   showSceneError(I18n.t('连线未接上'),message,{to,port});
  }
+ function showConnectionHint(message,to,port){
+  showSceneError(I18n.t('已连接。'),message,{to,port,hint:true});
+ }
  function showPlacementError(message,x,z){
   if(!Number.isFinite(x)||!Number.isFinite(z))return;
   showSceneError(I18n.t('组件未放置'),message,{position:new T.Vector3(x,0,z)});
  }
  function syncConnectionError(w,h){
   if(!connectionNotice)return;const {el,to,port,position}=connectionNotice;
-  const target=position?null:overlay.querySelector(`[data-input="${to}:${port}"]`);target?.classList.add('rejected');
+  const target=position?null:overlay.querySelector(`[data-input="${to}:${port}"]`);if(!connectionNotice.hint)target?.classList.add('rejected');
   const [x,y]=project(position||point(to,'in',port)),width=el.offsetWidth,height=el.offsetHeight,gap=(target?.offsetHeight||30)/2+12;
   const left=Math.max(12,Math.min(w-width-12,x-width/2)),above=y-height-gap>=12;
   el.style.left=left+'px';el.style.top=Math.max(12,Math.min(h-height-12,above?y-height-gap:y+gap))+'px';
@@ -1364,5 +1370,5 @@ try{
  function beforeStage(){clearConnectionError();if(focusId)leaveFocus();cancelAnimationFrame(cameraFrame);transitioning=false;host.setAttribute('aria-busy','false');drag=lastTap=null;clearPreview();clearPlacement();clearPackets();elements=[];overlay.replaceChildren();}
  function setStage(){followSeed=null;followZoom=null;setFollow(!!stage().floating);cameraPan=false;$('#demo-pan').setAttribute('aria-pressed','false');art.surroundings(samples(),stage(),scenePalette());yaw=.05;pitch=.8;zoom=stage().zoom;cameraTarget.set(0,0,0);rebuild();}
  function relocalize(){clearConnectionError();art.surroundings(samples(),stage(),scenePalette());rebuild();packets.forEach(p=>{p.el.querySelector('.packet-title').textContent=p.motion==='feedback'?I18n.t('接回输入'):packetIdentity(p.el.dataset.from);if(p.sequenceProjection)p.updateEquation(p.column,p.projectionRow);if(p.motion==='wire'&&(definition(p.el.dataset.from)?.type==='pick'||kindOf(p.el.dataset.from)==='feedback'))p.cells.textContent=M.readTokens(p.values);if(p.appending){p.cells.textContent=M.readTokens(p.input);p.after.textContent=M.readTokens(p.output);}if(p.selection&&p.progress!=null){p.after.textContent=M.readTokens(p.output);p.updateSelection(art.selectionFrame(p.progress,p.input.length/p.output.length,p.output.length));p.outputLabels.forEach(({el},j)=>el.textContent=M.math.vocab[p.output[j]]);}if(p.normalizing&&p.progress!=null)p.updateRMS(normalizationFrame(p.progress,p.centering));if(p.tokenOperation&&p.progress!=null)p.updateToken(art.tokenFrame(p.progress,p.tokenOperation));if(p.motion==='process'&&p.progress!=null)art.processing(p.node.id,p.progress,p.input,p.output,p.color,{sequence:!!stage().sequence,detailed:p.detailed,paired:p.paired,other:p.other,words:p.words?.(),valueWords:p.valueWords?.()});});render();}
- new ResizeObserver(render).observe(host);world={relocalize,labels,rebuild,animate,feedback,finishDemo,fuse,skipFusion:()=>finishFusion(true),clearPackets,showConnectionError,showPlacementError,clearConnectionError,clearPreview,clearPlacement,previewAt,previewPlacement,focus,focusShelf,focused:()=>focusId,beforeStage,setStage,syncShelf:()=>syncPlacementGuide(host.clientWidth,host.clientHeight)};$('#loading').hidden=true;rebuild();refresh();
+ new ResizeObserver(render).observe(host);world={relocalize,labels,rebuild,animate,feedback,finishDemo,fuse,skipFusion:()=>finishFusion(true),clearPackets,showConnectionError,showConnectionHint,showPlacementError,clearConnectionError,clearPreview,clearPlacement,previewAt,previewPlacement,focus,focusShelf,focused:()=>focusId,beforeStage,setStage,syncShelf:()=>syncPlacementGuide(host.clientWidth,host.clientHeight)};$('#loading').hidden=true;rebuild();refresh();
 }catch(e){$('#loading').innerHTML=I18n.t("<strong>3D 台面没有加载成功，请刷新重试。</strong>");say(I18n.t("页面尚未开始运行。"),'error');console.error(e);}
