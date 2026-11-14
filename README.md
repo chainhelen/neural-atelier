@@ -179,7 +179,7 @@ The repository includes `.nojekyll`; no build command or `npm run dev` process i
 
 ## Support the project
 
-If Neural Atelier helped you learn, you can support hosting and continued development through **WeChat Pay or PayPal**. Thank you!
+If Neural Atelier helped you learn, you can support hosting and continued development through **WeChat Pay, Alipay, or PayPal**. Thank you!
 
 [Support Neural Atelier →](SUPPORT.md)
 

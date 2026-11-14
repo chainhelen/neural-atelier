@@ -12,6 +12,14 @@ Scan the code with WeChat Pay and choose an amount. On a phone, save the image a
 
 <img src="docs/support/wechat-pay.png" alt="chainhelen 的微信收款二维码 / WeChat Pay QR code for chainhelen" width="300">
 
+## 支付宝 · Alipay
+
+使用支付宝扫描下方收款码，自行填写赞助金额。手机上可以保存图片，再通过支付宝扫一扫从相册识别。
+
+Scan the code with Alipay and choose an amount. On a phone, save the image and select it from your photos in Alipay's scanner.
+
+<img src="docs/support/alipay.jpg" alt="chainhelen 的支付宝收款二维码 / Alipay QR code for chainhelen" width="300">
+
 ## PayPal
 
 收款邮箱 / PayPal recipient email
