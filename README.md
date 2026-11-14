@@ -177,6 +177,12 @@ To enable GitHub Pages on your own copy:
 
 The repository includes `.nojekyll`; no build command or `npm run dev` process is needed on Pages. The current public demo is hosted at [hacking.pub](https://hacking.pub/games/neural-atelier/).
 
+## Support the project
+
+If Neural Atelier helped you learn, you can support hosting and continued development through **WeChat Pay or PayPal**. Thank you!
+
+[Support Neural Atelier →](SUPPORT.md)
+
 ## What the game models
 
 Small-matrix projection, attention, and FFN puzzles perform actual arithmetic. Hardware scheduling and performance figures use a simplified teaching model; the game does not load a large language model or access the Apple Neural Engine.

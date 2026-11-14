@@ -176,6 +176,12 @@ git pull --ff-only
 
 项目包含 `.nojekyll`，不需要构建命令，也不需要在 GitHub 上运行 `npm run dev`。已有的 GitHub Actions 工作流负责测试；Pages 负责发布静态文件。
 
+## 支持项目
+
+如果神经工坊对你有帮助，欢迎通过 **微信支付或 PayPal** 自愿赞助，支持服务器费用和后续开发。谢谢你的支持！
+
+[支持神经工坊 →](SUPPORT.md)
+
 ## 教学范围
 
 小矩阵的投影、注意力和 FFN 执行真实的算术计算；ANE 调度和性能数字使用简化的教学模型。游戏不加载真实大模型，也不会调用苹果 ANE。设计参考 Kapitsa 的端侧推理思路，参考版本和模型假设见 [ENGINE_NOTES.md](ENGINE_NOTES.md)。
