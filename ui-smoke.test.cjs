@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),test=require('node:test');
 const {parseHTML}=require('linkedom');
-function boot(storage=new Map(),hash='',languages=['zh-CN']){
+function boot(storage=new Map(),hash='',languages=['zh-CN'],languagePreference='auto'){
  const {document,window}=parseHTML(fs.readFileSync(__dirname+'/index.html','utf8'));
  window.HTMLElement.prototype.scrollIntoView=function(){};
  for(const el of document.querySelectorAll('dialog')){el.showModal=function(){this.open=true};el.close=function(){this.open=false};}
@@ -8,7 +8,7 @@ function boot(storage=new Map(),hash='',languages=['zh-CN']){
  const hashchange=()=>listeners.get('hashchange')?.(),popstate=()=>listeners.get('popstate')?.();
  const traverse=next=>{const hash=location.hash;location.href=entries[cursor=next];popstate();if(location.hash!==hash)hashchange();};
  const navigation={pushState(_,title,url){location.href=new URL(url,location.href).href;entries.splice(++cursor);entries.push(location.href);},replaceState(_,title,url){location.href=new URL(url,location.href).href;entries[cursor]=location.href;},back(){if(cursor)traverse(cursor-1);},forward(){if(cursor+1<entries.length)traverse(cursor+1);},get length(){return entries.length;}};
- const c={window:{},document,console,navigator:{languages},location,history:navigation,addEventListener:(type,fn)=>listeners.set(type,fn),localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}};c.window=c;vm.createContext(c);
+ const c={window:{},document,console,navigator:{languages},location,history:navigation,addEventListener:(type,fn)=>listeners.set(type,fn),localStorage:{getItem:k=>storage.get(k)||(k==='neural-atelier-language-v1'?languagePreference:null),setItem:(k,v)=>storage.set(k,v)}};c.window=c;vm.createContext(c);
  for(const file of ['locales/en.js','i18n.js','music.js','shell.js','model.js','campaign.js','engine-model.js','original-curriculum.js','transformer-demo.js','cloud-curriculum.js','lesson-io.js','structure-map.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8'),c,{filename:file});
  for(const file of ['module-cards.js','level-progress.js','glossary.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8').replaceAll('export ',''),c,{filename:file});
  let code=fs.readFileSync(__dirname+'/game.js','utf8').replace(/^import .*\n/gm,'');code=code.slice(0,code.indexOf("try{\n const T="));
@@ -611,7 +611,14 @@ test('history cancels a pending welcome transition without opening the picker af
  app.navigation.forward();doc.querySelector('#enter-workshop').onclick();callbacks.shift()();assert.equal(doc.body.dataset.screen,'levels');
 });
 
-test('browser language is recommended on first visit and a saved choice overrides it',()=>{
+test('first visits default to English and explicit browser or saved choices are respected',()=>{
+ for(const languages of [['zh-CN'],['en-US'],[],undefined]){
+  const app=boot(new Map(),'',languages,null);
+  assert.equal(app.c.I18n.language(),'en');
+  assert.equal(app.c.I18n.preference(),'en');
+  assert.equal(app.document.documentElement.lang,'en');
+ }
+
  for(const [languages,expected] of [[['zh-TW'],'zh'],[['en-GB'],'en'],[['fr-FR','en-US','zh-CN'],'en'],[['ja-JP'],'en']]){
   const app=boot(new Map(),'',languages);assert.equal(app.c.I18n.language(),expected);assert.equal(app.document.documentElement.lang,expected==='zh'?'zh-CN':'en');
  }
@@ -904,7 +911,7 @@ test('original placement migration preserves wired, completed and partly built s
 test('a failed archive write leaves the former original board intact',()=>{
  const app=boot(),legacy=app.eval("M.initial('embedding',{complete:true})");delete legacy.placementRevision;
  const key='neural-atelier-level-embedding-v1',raw=JSON.stringify(legacy),storage=new Map([[key,raw]]);
- app.c.limitedStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>{if(k.endsWith('-before-placement'))throw new Error('full');storage.set(k,v);}};
+ app.c.limitedStorage={getItem:k=>storage.get(k)||(k==='neural-atelier-language-v1'?languagePreference:null),setItem:(k,v)=>{if(k.endsWith('-before-placement'))throw new Error('full');storage.set(k,v);}};
  assert.equal(app.eval("JSON.stringify(createProgress(M,limitedStorage).load('embedding').nodes)"),JSON.stringify(legacy.nodes));assert.equal(storage.get(key),raw);
 });
 

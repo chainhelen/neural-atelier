@@ -1,9 +1,9 @@
 (function(scope){
  const key='neural-atelier-language-v1',catalog=scope.AtelierEnglish||{},listeners=new Set(),missing=new Set();
- let preference='auto',active=false,bindings=[];
+ let preference='en',active=false,bindings=[];
  try{const saved=scope.localStorage?.getItem(key);if(['auto','zh','en'].includes(saved))preference=saved;}catch{}
  function recommended(){
-  const languages=scope.navigator?.languages||[scope.navigator?.language||'en'];
+  const languages=scope.navigator?.languages?.length?scope.navigator.languages:[scope.navigator?.language||'en'];
   for(const language of languages){if(/^zh(?:-|$)/i.test(language))return 'zh';if(/^en(?:-|$)/i.test(language))return 'en';}
   return 'en';
  }
